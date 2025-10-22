@@ -57,12 +57,14 @@ When users ask about voice direction, provide general guidance using your knowle
 """
 
 
-async def prewarm(proc: JobProcess):
+def prewarm(proc: JobProcess):
     """
     Preload heavy resources once per worker.
 
     This function runs once when the worker starts, before any rooms are joined.
     Use for loading models, initializing databases, etc.
+
+    Note: This should be a sync function, not async.
     """
     logger.info("Prewarming agent resources...")
 

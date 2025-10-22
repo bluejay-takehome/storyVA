@@ -41,6 +41,12 @@ See **TDD.md Section 3.4** for complete configuration details.
 
 ## Development Best Practices
 
+- **ALWAYS TEST YOURSELF FIRST:** Before declaring something "ready" or "complete", run basic tests:
+  - Does the script execute without errors? (`uv run python main.py`)
+  - Do imports work?
+  - Are there syntax errors?
+  - Can you verify basic functionality?
+  - User can test integration/UX, but you should catch basic errors first
 - **NO AUTO-COMMITS:** Always explain changes and let user test first
 - **Explain Changes:** Document what was fixed and why
 - **Test First:** Verify changes locally before committing

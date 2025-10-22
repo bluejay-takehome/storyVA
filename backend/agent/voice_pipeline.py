@@ -6,7 +6,6 @@ Sets up the STT → LLM → TTS → VAD pipeline for real-time conversation.
 import os
 from livekit.agents import AgentSession
 from livekit.plugins import deepgram, openai, silero
-from livekit.plugins.turn_detector import EOUModel
 from agent.state import StoryState
 
 
@@ -56,15 +55,16 @@ async def create_agent_session(user_data: StoryState) -> AgentSession:
             speed=1.0,
         ),
 
-        # Turn Detection (End-of-utterance model)
-        turn_detection=EOUModel(),
+        # Turn Detection (auto-selected: will use vad → stt → manual fallback)
+        # Can explicitly set to "vad", "stt", "realtime_llm", or "manual"
+        # Leaving as NOT_GIVEN for automatic selection
 
         # Interruption Settings
         allow_interruptions=True,
         min_endpointing_delay=0.5,
 
         # User Data
-        user_data=user_data,
+        userdata=user_data,
     )
 
     return session
