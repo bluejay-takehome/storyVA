@@ -518,7 +518,6 @@ Each should retrieve relevant passages from PDFs.
 
 **Document Version:** 1.2
 **Last Updated:** 2025-10-21
-**Author:** Yash (storyVA project)
 **Status:** Ready for Implementation
 
 **Changelog:**
