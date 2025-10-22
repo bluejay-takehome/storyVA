@@ -257,26 +257,37 @@ Based on research, implement `FishAudioTTS` class following LiveKit's TTS interf
 
 ### 3.4 API Keys Configuration
 
-**Location:** `backend/.env` (already set up by user)
+**Location:** `backend/.env`
 
 **Required Keys:**
-- `LIVEKIT_URL` - LiveKit Cloud WebSocket URL
-- `LIVEKIT_API_KEY` - LiveKit API key
-- `LIVEKIT_API_SECRET` - LiveKit API secret
-- `OPENAI_API_KEY` - GPT-5 and embeddings (available in system environment)
-- `DEEPGRAM_API_KEY` - Speech-to-text
-- `FISH_AUDIO_API_KEY` - TTS for agent and preview (already provided)
-- `FISH_LELOUCH_VOICE_ID` - Lelouch voice model: `48056d090bfe4d6690ff31725075812f`
-- `FISH_MALE_VOICE_ID` - Default male/ambiguous character: `802e3bc2b27e49c2995d23ef70e6ac89`
-- `FISH_FEMALE_VOICE_ID` - Default female character: `b545c585f631496c914815291da4e893`
-- `PINECONE_API_KEY` - Vector database
-- `PINECONE_ENVIRONMENT` - e.g., us-east-1-aws
-- `PINECONE_INDEX_NAME` - e.g., voice-acting-knowledge
+
+```bash
+# LiveKit Configuration
+LIVEKIT_URL=wss://bluejay-97zjii70.livekit.cloud
+LIVEKIT_API_KEY=<your-livekit-api-key>
+LIVEKIT_API_SECRET=<your-livekit-api-secret>
+
+# OpenAI (GPT-5 and embeddings)
+OPENAI_API_KEY=<your-openai-api-key>
+
+# Deepgram STT
+DEEPGRAM_API_KEY=<your-deepgram-api-key>
+
+# Fish Audio TTS
+FISH_AUDIO_API_KEY=<your-fish-audio-api-key>
+FISH_LELOUCH_VOICE_ID=48056d090bfe4d6690ff31725075812f
+FISH_MALE_VOICE_ID=802e3bc2b27e49c2995d23ef70e6ac89
+FISH_FEMALE_VOICE_ID=b545c585f631496c914815291da4e893
+
+# Pinecone Vector Database
+PINECONE_API_KEY=<your-pinecone-api-key>
+PINECONE_INDEX_NAME=storyva-voice-acting
+```
 
 **Frontend Keys:** (if needed)
 - `NEXT_PUBLIC_LIVEKIT_URL` - LiveKit connection from browser
 
-**Note:** All API keys stored in `.env` files (not committed to git). See `.env.example` for template.
+**Note:** All API keys stored in `.env` files (not committed to git). Voice model IDs are public and can be committed.
 
 ---
 
