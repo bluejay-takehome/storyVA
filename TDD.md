@@ -1391,10 +1391,9 @@ stt=deepgram.STT(
   - Display tool calls
 - [ ] Connect frontend to LiveKit (obtain room tokens via API route)
 
-**Deliverable:** ✅ Functional UI for complete user journey
+**Deliverable:** Functional UI for complete user journey
 
 **Implementation Notes:**
-- Built custom DiffViewer (react-diff-viewer doesn't support React 19)
 - LiveKit token generation via `/api/livekit-token` route
 - localStorage persistence for story text
 - Ready for Phase 4 integration (diff acceptance, transcript from agent)
