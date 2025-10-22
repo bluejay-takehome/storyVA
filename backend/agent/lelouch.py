@@ -128,16 +128,15 @@ async def entrypoint(ctx: JobContext):
     session = await create_agent_session(story_state)
     logger.info("Created agent session with voice pipeline")
 
-    # Start the session with all tools (Phase 4)
-    await session.start(
-        room=ctx.room,
-        instructions=LELOUCH_INSTRUCTIONS,
-        function_tools=[
-            search_acting_technique,      # Phase 3: RAG retrieval
-            suggest_emotion_markup,       # Phase 4: Emotion markup with validation
-            preview_line_audio,           # Phase 4: Fish Audio preview
-        ],
-    )
+    # Start the session
+    session.start(ctx.room)
+
+    # Set instructions and tools
+    session.agent.set_instructions(LELOUCH_INSTRUCTIONS)
+    session.agent.add_function(search_acting_technique)       # Phase 3: RAG retrieval
+    session.agent.add_function(suggest_emotion_markup)        # Phase 4: Emotion markup
+    session.agent.add_function(preview_line_audio)            # Phase 4: Fish Audio preview
+
     logger.info("Agent session started with all Phase 4 tools (RAG + emotion markup + preview)")
 
     # Generate initial greeting

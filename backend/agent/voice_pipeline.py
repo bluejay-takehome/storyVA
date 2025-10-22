@@ -40,7 +40,6 @@ async def create_agent_session(user_data: StoryState) -> AgentSession:
             interim_results=True,
             punctuate=True,
             smart_format=True,
-            endpointing=300,  # ms of silence before end of utterance
         ),
 
         # Large Language Model (GPT-5)
