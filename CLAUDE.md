@@ -8,7 +8,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Key Technical Achievement**: [achievement description]
 
-**Supabase Project ID**: [supabase-project-id]
 
 ## Documentation Structure
 
@@ -16,14 +15,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Frontend Details**: `./frontend/README.md` - Next.js app, routes, components, hooks
 - **Backend Details**: `./backend/README.md` - Services, APIs, deployment
 
-
-### Infrastructure
-- **Database**: Supabase PostgreSQL with RLS
-- **File Storage**: GCS
-- **Serverless (backend)**: Modal
-- **Authentication**: Supabase Auth
-
-## Development Commands
 
 ### Directory Structure
 **IMPORTANT**: This is a wrapper repository with git submodules:
