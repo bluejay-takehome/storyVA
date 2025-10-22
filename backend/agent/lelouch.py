@@ -9,7 +9,12 @@ import logging
 from livekit.agents import JobContext, JobProcess
 from agent.state import StoryState
 from agent.voice_pipeline import create_agent_session
-from agent.tools import set_rag_retriever, search_acting_technique
+from agent.tools import (
+    set_rag_retriever,
+    search_acting_technique,
+    suggest_emotion_markup,
+    preview_line_audio,
+)
 from rag.retriever import VoiceActingRetriever
 
 logger = logging.getLogger(__name__)
@@ -36,21 +41,33 @@ WORKFLOW:
 1. User describes intent
 2. You analyze story context
 3. Retrieve technique if relevant using search_acting_technique(query)
-4. Suggest specific markup changes
-5. Present diff visually (don't speak tags)
+4. Suggest specific markup changes using suggest_emotion_markup(line_text, emotions, explanation)
+5. Present diff visually (don't speak tags aloud)
 6. Wait for user approval
+7. If user asks "how would this sound?", call preview_line_audio(marked_up_text, character_gender)
 
-RAG TOOL USAGE:
-- Use search_acting_technique when user asks about voice acting techniques
+TOOL USAGE:
+
+RAG Tool - search_acting_technique:
+- Use when user asks about voice acting techniques
 - Query examples: "emotional authenticity", "desperation in voice", "grief scenes"
 - Cite the sources returned (book title, author, page number)
 - Synthesize techniques into concise advice (2-4 sentences)
 
-PREVIEW TOOL USAGE (coming in Phase 4):
-- When user asks "how would this sound?", call preview_line_audio
-- Automatically infer character gender from context (pronouns, names, attribution)
-- Example: "she said" → gender="female", "Marcus replied" → gender="male"
-- NEVER ask user for gender - infer it silently
+Emotion Markup Tool - suggest_emotion_markup:
+- Use when suggesting emotion tags for dialogue
+- Provide: original line text, list of emotions, brief explanation
+- Tool returns validated diff with proposed markup
+- Don't speak the tags - they appear in visual diff
+
+Audio Preview Tool - preview_line_audio:
+- Use when user asks "how would this sound?" or requests audio preview
+- CRITICAL: Automatically infer character gender from context
+  - Pronouns: "she said" → "female", "he replied" → "male"
+  - Character names: Sarah/Emma → "female", Marcus/John → "male"
+  - Default to "neutral" if ambiguous
+- NEVER ask user for gender - infer it silently from the text
+- Tool generates audio file with character voice (different from your Lelouch voice)
 
 STYLE EXAMPLES:
 - "I see. Given the context, regret serves better than sadness here."
@@ -59,8 +76,10 @@ STYLE EXAMPLES:
 - "Applied. The subtlety serves the moment better."
 
 CURRENT PHASE:
-Phase 3 complete. RAG system is available - use search_acting_technique to cite Stanislavski and Linklater.
-Emotion markup tools coming in Phase 4.
+Phase 4 complete. All tools are active:
+- RAG: search_acting_technique (cite Stanislavski and Linklater)
+- Emotion markup: suggest_emotion_markup (validate and diff)
+- Audio preview: preview_line_audio (Fish Audio with character voices)
 """
 
 
@@ -109,13 +128,17 @@ async def entrypoint(ctx: JobContext):
     session = await create_agent_session(story_state)
     logger.info("Created agent session with voice pipeline")
 
-    # Start the session with tools
+    # Start the session with all tools (Phase 4)
     await session.start(
         room=ctx.room,
         instructions=LELOUCH_INSTRUCTIONS,
-        function_tools=[search_acting_technique],
+        function_tools=[
+            search_acting_technique,      # Phase 3: RAG retrieval
+            suggest_emotion_markup,       # Phase 4: Emotion markup with validation
+            preview_line_audio,           # Phase 4: Fish Audio preview
+        ],
     )
-    logger.info("Agent session started with RAG tool")
+    logger.info("Agent session started with all Phase 4 tools (RAG + emotion markup + preview)")
 
     # Generate initial greeting
     await session.agent.say(
