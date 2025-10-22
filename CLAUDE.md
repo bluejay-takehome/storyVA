@@ -4,7 +4,7 @@ Guidance for Claude Code when working with the StoryVA project.
 
 ## Core Documentation
 
-**READ THESE FIRST** before making implementation decisions:
+**READ THESE FIRST** before making implementation decisions or when refreshing your memoryua:
 
 - **[PRD.md](./PRD.md)** - Product requirements, user flows, agent personality, Fish Audio emotion rules
 - **[TDD.md](./TDD.md)** - System architecture, component designs, implementation code examples, development plan
@@ -22,7 +22,7 @@ Guidance for Claude Code when working with the StoryVA project.
 - **Backend:** Python (LiveKit Agents SDK, LlamaIndex)
 - **TTS:** Fish Audio (custom implementation required)
 - **Vector DB:** Pinecone (`storyva-voice-acting` index)
-- **LLM:** GPT-5
+- **LLM:** GPT-5 (yes it is available, it is now October 2025)
 
 See **TDD.md Section 2** for full architecture and repository structure.
 
@@ -62,7 +62,7 @@ cd frontend && npm run dev        # http://localhost:3000
 
 # Backend
 cd backend && uv sync             # Install deps
-python main.py                    # Run agent (when ready)
+uv run python main.py                    # Run agent (when ready)
 ```
 
 ## Key Constraints
