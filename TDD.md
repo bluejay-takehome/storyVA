@@ -37,14 +37,13 @@ Build a RAG-enabled voice agent that acts as "Lelouch," a brilliant voice direct
 - **Must use Python backend** (per GUIDELINES.md)
 - **Must use LiveKit** for voice orchestration
 - **Must submit single git repo** (no submodules)
-- **Deployment:** Local first, AWS optional for bonus points
+- **Deployment:** Local first (AWS deployment is a stretch goal, not required)
 
 ### 1.4 Success Criteria
 - Agent maintains Lelouch personality consistently
 - RAG retrieves relevant voice acting techniques
 - Fish Audio emotion tags applied correctly
 - Conversation latency < 5 seconds
-- Demo-ready in 2-3 weeks
 
 ---
 
@@ -1211,7 +1210,7 @@ stt=deepgram.STT(
 
 ## 7. Development Plan
 
-### 7.1 Phase 1: Foundation (Days 1-3)
+### 7.1 Phase 1: Foundation
 
 **Goal:** Repository setup, basic infrastructure
 
@@ -1234,7 +1233,7 @@ stt=deepgram.STT(
 
 ---
 
-### 7.2 Phase 2: Backend Core (Days 4-7)
+### 7.2 Phase 2: Backend Core
 
 **Goal:** Working LiveKit agent with basic voice pipeline
 
@@ -1253,7 +1252,7 @@ stt=deepgram.STT(
 
 ---
 
-### 7.3 Phase 3: RAG System (Days 8-10)
+### 7.3 Phase 3: RAG System
 
 **Goal:** Pinecone indexing and retrieval working
 
@@ -1272,7 +1271,7 @@ stt=deepgram.STT(
 
 ---
 
-### 7.4 Phase 4: Emotion Markup Tools (Days 11-13)
+### 7.4 Phase 4: Emotion Markup Tools
 
 **Goal:** Diff generation and Fish Audio preview
 
@@ -1296,7 +1295,7 @@ stt=deepgram.STT(
 
 ---
 
-### 7.5 Phase 5: Frontend UI (Days 14-17)
+### 7.5 Phase 5: Frontend UI
 
 **Goal:** Complete user interface with all components
 
@@ -1325,7 +1324,7 @@ stt=deepgram.STT(
 
 ---
 
-### 7.6 Phase 6: Integration & Testing (Days 18-20)
+### 7.6 Phase 6: Integration & Testing
 
 **Goal:** End-to-end system working smoothly
 
@@ -1338,33 +1337,31 @@ stt=deepgram.STT(
 - [ ] Performance testing (measure latency)
 - [ ] Error handling (API failures, network issues)
 - [ ] Polish Lelouch personality (adjust prompt if needed)
-- [ ] Record demo video for interview
 
-**Deliverable:** Demo-ready application
+**Deliverable:** Production-ready application
 
 ---
 
-### 7.7 Phase 7: Documentation & Deployment (Days 21-23)
+### 7.7 Phase 7: Documentation & Deployment
 
-**Goal:** Deployment-ready and well-documented
+**Goal:** Production-ready deployment and documentation
 
 **Tasks:**
 - [ ] Write README.md with setup instructions
 - [ ] Create DEPLOYMENT.md guide
 - [ ] Run frontend locally in production mode
-- [ ] Run backend locally for demo (or deploy to AWS if time permits)
+- [ ] Run backend locally (test complete flow)
 - [ ] Create `.env.example` files
 - [ ] Write troubleshooting guide
-- [ ] Practice interview presentation (5-10 min demo)
-- [ ] Prepare to answer technical questions
+- [ ] (Stretch goal) Deploy to AWS if time permits
 
-**Deliverable:** Submittable project for Bluejay interview
+**Deliverable:** Production-ready application with complete documentation
 
 ---
 
 ## 8. Deployment Strategy
 
-### 8.1 Local Deployment (MVP)
+### 8.1 Local Deployment (Primary Goal)
 
 **Frontend:**
 ```bash
@@ -1384,16 +1381,13 @@ python main.py start
 
 **LiveKit:** Cloud-hosted (no deployment needed)
 
-**Presentation Setup:**
-- Run frontend + backend on laptop
-- Share screen during interview
-- Interviewer can test by joining room from their browser
-
 ---
 
-### 8.2 Cloud Deployment (Optional Bonus)
+### 8.2 Cloud Deployment (Stretch Goal - Not Required)
 
-**Frontend:** Can be deployed to any Node.js hosting (Vercel, Netlify, AWS Amplify) but not required for interview
+**Note:** Cloud deployment is optional and not necessary for the primary application goals. Focus on local deployment first.
+
+**Frontend:** Can be deployed to any Node.js hosting (Vercel, Netlify, AWS Amplify)
 
 **Backend → AWS EC2:**
 
@@ -1527,7 +1521,6 @@ async def test_fish_audio_preview():
 | **Fish Audio API unreliable** | Tool call fails, poor demo | Fallback to text-only responses, test API thoroughly |
 | **LiveKit free tier limits** | Can't complete demo | Monitor usage, upgrade if needed ($50) |
 | **RAG retrieval poor quality** | Agent gives wrong techniques | Manual testing with 20+ queries, adjust chunking |
-| **GPT-5 API costs high** | Over budget | Use GPT-4o-mini for development, GPT-5 for demo only |
 | **Latency too high (>5s)** | Poor user experience | Optimize chunk sizes, reduce reasoning effort |
 
 ### 10.2 Medium Risks
@@ -1535,17 +1528,13 @@ async def test_fish_audio_preview():
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | **Emotion tag validation bugs** | Invalid markup applied | Extensive unit tests, reference emotion_control.md |
-| **Diff rendering issues** | Confusing UI | Use react-diff-viewer library (battle-tested) |
 | **PDF indexing fails** | No RAG functionality | Test indexing early, verify in Pinecone dashboard |
-| **Fish Audio voice doesn't fit** | Personality mismatch | Test multiple voice_ids, choose commanding/professional tone |
 
 ### 10.3 Low Risks
 
 | Risk | Impact | Mitigation |
 |------|--------|------------|
 | **TypeScript compilation errors** | Build failures | Use strict mode from start, test builds regularly |
-| **Git repo too large (PDFs)** | GitHub push fails | Already have PDFs locally, won't exceed limits |
-| **Deployment complexity** | Can't deploy to AWS | Local deployment is acceptable for interview |
 
 ---
 
@@ -1555,7 +1544,7 @@ async def test_fish_audio_preview():
 
 ✅ **Single repo or submodules?** → Single repo (per GUIDELINES.md)
 ✅ **Next.js or vanilla React?** → Next.js (React-based, meets requirements)
-✅ **Modal or local deployment?** → Local first, AWS optional
+✅ **Deployment strategy?** → Local first, AWS is stretch goal only
 ✅ **Fish Audio for agent voice?** → Yes, custom TTS implementation with WebSocket streaming
 ✅ **LLM provider?** → GPT-5 (latest, user confirmed availability)
 ✅ **RAG framework?** → LlamaIndex (simpler, purpose-built for RAG)
@@ -1605,14 +1594,6 @@ async def test_fish_audio_preview():
 - ✅ Audio previews work with emotion tags
 - ✅ Live transcript displays in real-time
 
-### 12.3 Interview Presentation Goals
-
-- ✅ 5-10 minute live demo without errors
-- ✅ Clear explanation of RAG system
-- ✅ Demonstrate tool calling (Fish Audio preview)
-- ✅ Show creative storytelling (Lelouch personality)
-- ✅ Answer technical questions confidently
-
 ---
 
 ## 13. Next Steps
@@ -1639,4 +1620,3 @@ async def test_fish_audio_preview():
 
 **Document Status:** ✅ Ready for Implementation
 **Last Updated:** October 22, 2025
-**Next Document:** `DEPLOYMENT.md` (to be created in Phase 7)
