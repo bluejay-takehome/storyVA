@@ -36,6 +36,7 @@ def verify_environment():
         "LIVEKIT_API_SECRET",
         "DEEPGRAM_API_KEY",
         "FISH_AUDIO_API_KEY",
+        "FISH_LELOUCH_VOICE_ID",
         "PINECONE_API_KEY",
     ]
 
