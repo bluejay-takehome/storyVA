@@ -46,6 +46,7 @@ See **TDD.md Section 3.4** for complete configuration details.
 - **Test First:** Verify changes locally before committing
 - **Follow TDD:** Reference TDD.md for implementation patterns
 - **Use TodoWrite:** Track multi-step tasks with the todo list
+- **Keep TDD Updated:** When completing tasks or making design changes, update TDD.md to reflect current state
 
 ## Dev Commands
 
