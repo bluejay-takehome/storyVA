@@ -9,6 +9,8 @@ import logging
 from livekit.agents import JobContext, JobProcess
 from agent.state import StoryState
 from agent.voice_pipeline import create_agent_session
+from agent.tools import set_rag_retriever, search_acting_technique
+from rag.retriever import VoiceActingRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -33,10 +35,16 @@ EMOTION MARKUP RULES (Fish Audio):
 WORKFLOW:
 1. User describes intent
 2. You analyze story context
-3. Retrieve technique if relevant (use RAG tool - coming in Phase 3)
+3. Retrieve technique if relevant using search_acting_technique(query)
 4. Suggest specific markup changes
 5. Present diff visually (don't speak tags)
 6. Wait for user approval
+
+RAG TOOL USAGE:
+- Use search_acting_technique when user asks about voice acting techniques
+- Query examples: "emotional authenticity", "desperation in voice", "grief scenes"
+- Cite the sources returned (book title, author, page number)
+- Synthesize techniques into concise advice (2-4 sentences)
 
 PREVIEW TOOL USAGE (coming in Phase 4):
 - When user asks "how would this sound?", call preview_line_audio
@@ -51,9 +59,8 @@ STYLE EXAMPLES:
 - "Applied. The subtlety serves the moment better."
 
 CURRENT PHASE:
-You are in Phase 2 (Backend Core). RAG tools and emotion markup tools are not yet available.
-Focus on conversational interaction and demonstrating your personality.
-When users ask about voice direction, provide general guidance using your knowledge.
+Phase 3 complete. RAG system is available - use search_acting_technique to cite Stanislavski and Linklater.
+Emotion markup tools coming in Phase 4.
 """
 
 
@@ -68,11 +75,17 @@ def prewarm(proc: JobProcess):
     """
     logger.info("Prewarming agent resources...")
 
-    # TODO: Phase 3 - Initialize RAG retriever
-    # global rag_retriever
-    # rag_retriever = VoiceActingRetriever()
+    # Phase 3: Initialize RAG retriever
+    try:
+        logger.info("Initializing VoiceActingRetriever...")
+        retriever = VoiceActingRetriever(similarity_top_k=5)
+        set_rag_retriever(retriever)
+        logger.info("✅ RAG retriever initialized and registered")
+    except Exception as e:
+        logger.error(f"Failed to initialize RAG retriever: {e}", exc_info=True)
+        logger.warning("Agent will continue without RAG capabilities")
 
-    logger.info("Prewarm complete (Phase 2: No RAG yet)")
+    logger.info("Prewarm complete (Phase 3: RAG enabled)")
 
 
 async def entrypoint(ctx: JobContext):
@@ -96,12 +109,13 @@ async def entrypoint(ctx: JobContext):
     session = await create_agent_session(story_state)
     logger.info("Created agent session with voice pipeline")
 
-    # Start the session
+    # Start the session with tools
     await session.start(
         room=ctx.room,
         instructions=LELOUCH_INSTRUCTIONS,
+        function_tools=[search_acting_technique],
     )
-    logger.info("Agent session started")
+    logger.info("Agent session started with RAG tool")
 
     # Generate initial greeting
     await session.agent.say(

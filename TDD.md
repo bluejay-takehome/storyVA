@@ -1,8 +1,8 @@
 # Technical Design Document: Voice Director Agent
 **Project:** StoryVA - Voice Acting Direction Agent
-**Version:** 1.2
-**Date:** October 22, 2025 (Updated after Phase 2B completion)
-**Status:** In Progress - Phase 2B Complete, Ready for Phase 3
+**Version:** 1.3
+**Date:** October 22, 2025 (Updated after Phase 3 completion)
+**Status:** In Progress - Phase 3 Complete, Ready for Phase 4
 
 ---
 
@@ -1330,15 +1330,15 @@ stt=deepgram.STT(
 **Tasks:**
 - [x] Move PDF files to `backend/data/pdfs/` (already present)
 - [x] Create Pinecone index `storyva-voice-acting` (already created)
-- [ ] Implement `backend/rag/indexer.py`
-- [ ] Run one-time indexing script (`python scripts/index_pdfs.py`)
-- [ ] Verify Pinecone index populated (check dashboard)
-- [ ] Implement `backend/rag/retriever.py`
-- [ ] Test retrieval with sample queries
-- [ ] Integrate RAG into agent as `search_acting_technique` tool
-- [ ] Test agent retrieving relevant techniques during conversation
+- [x] Implement `backend/rag/indexer.py`
+- [x] Run one-time indexing script (`uv run python scripts/index_pdfs.py`)
+- [x] Verify Pinecone index populated (1173 vectors)
+- [x] Implement `backend/rag/retriever.py`
+- [x] Test retrieval with sample queries (8/8 queries passed)
+- [x] Integrate RAG into agent as `search_acting_technique` tool
+- [x] Test agent retrieving relevant techniques during conversation
 
-**Deliverable:** Agent can cite Stanislavski and Linklater accurately
+**Deliverable:** ✅ Agent can cite Stanislavski and Linklater accurately
 
 ---
 
@@ -1760,25 +1760,30 @@ async def test_fish_audio_preview():
 1. [x] Complete Phase 1 ✅
 2. [x] Complete Phase 2A (Basic Agent) ✅
 3. [x] Complete Phase 2B (Fish Audio TTS) ✅
-4. [ ] **Begin Phase 3:** RAG System (Pinecone indexing and retrieval)
-5. [ ] Implement RAG indexer (`backend/rag/indexer.py`)
-6. [ ] Index PDF books to Pinecone
-7. [ ] Implement RAG retriever (`backend/rag/retriever.py`)
-8. [ ] Integrate RAG as `search_acting_technique` tool
+4. [x] Complete Phase 3 (RAG System) ✅
+5. [ ] **Begin Phase 4:** Emotion Markup Tools
 
-**Next Milestone:** RAG system working with voice acting books (Phase 3 complete)
+**Next Milestone:** Emotion markup and diff generation tools (Phase 4)
 
-**Current Status:** Phase 2B ✅ Complete - Ready to begin Phase 3 (RAG System)
+**Current Status:** Phase 3 ✅ Complete - Agent can cite Stanislavski and Linklater
 
-**Key Achievements:**
+**Phase 3 Achievements:**
+- ✅ RAG indexer (`backend/rag/indexer.py`) - Manual vector upload to Pinecone
+- ✅ 1173 chunks indexed from 672 PDF pages (Stanislavski + Linklater)
+- ✅ RAG retriever (`backend/rag/retriever.py`) - Semantic search with LlamaIndex
+- ✅ `search_acting_technique` tool integrated into agent
+- ✅ All 8 test queries return relevant citations
+- ✅ Agent instructions updated for Phase 3
+- ✅ Prewarm function initializes RAG retriever at worker startup
+
+**Phase 2B Achievements:**
 - Custom Fish Audio TTS successfully integrated into LiveKit
 - WebSocket streaming with timeout-based completion detection
 - ChunkedStream pattern for batch synthesis
 - 5-second timeout handles Fish Audio's missing "finish" events
 - All 4 test cases pass (plain text, confident, multiple tags, mixed emotions)
-- Agent registered with LiveKit Cloud (US West B)
 
 ---
 
-**Document Status:** ✅ Updated - Reflects Phase 2B completion
-**Last Updated:** October 22, 2025 (Post Phase 2B)
+**Document Status:** ✅ Updated - Reflects Phase 3 completion (RAG System)
+**Last Updated:** October 22, 2025 (Post Phase 3)
