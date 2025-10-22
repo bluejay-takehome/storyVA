@@ -1373,26 +1373,23 @@ stt=deepgram.STT(
 **Goal:** Complete user interface with all components
 
 **Tasks:**
-- [x] Create `app/director/page.tsx` main UI
-- [x] Implement `StoryEditor.tsx` component
+- [ ] Create `app/page.tsx` main UI
+- [ ] Implement `StoryEditor.tsx` component
   - Editable textarea
   - Word counter
   - Save state to localStorage
-- [x] Implement `CallControls.tsx` component
+  - Inline diff mode
+  - Highlight emotion tags in green
+- [ ] Implement `CallControls.tsx` component
   - Connect to LiveKit room
   - Start/end call buttons
   - Connection status indicator
-- [x] Implement `LiveTranscript.tsx` component
+- [ ] Implement `LiveTranscript.tsx` component
   - Display messages from LiveKit
   - Auto-scroll
   - User/agent differentiation
-- [x] Implement `DiffViewer.tsx` component
-  - Custom implementation (React 19 compatible)
-  - Inline mode
-  - Highlight emotion tags in green
-- [x] Connect frontend to LiveKit (obtain room tokens via API route)
-- [x] Update landing page with "Launch Voice Director" button
-- [x] Create frontend README with setup instructions
+  - Display tool calls
+- [ ] Connect frontend to LiveKit (obtain room tokens via API route)
 
 **Deliverable:** ✅ Functional UI for complete user journey
 
@@ -1437,42 +1434,6 @@ stt=deepgram.STT(
 
 **Deliverable:** Production-ready application with complete documentation
 
----
-
-### 7.8 Subagent Strategy
-
-**Purpose:** Document when and how to use Claude Code subagents for parallel/isolated tasks during development.
-
-#### When to Use Subagents
-
-**Phase 2 (Backend Core): ❌ NO SUBAGENTS**
-- **Reason:** Components tightly coupled (STT → LLM → TTS pipeline)
-- Need sequential testing and debugging
-- Fish Audio TTS is custom implementation requiring careful integration
-- Voice pipeline must be tested as a cohesive unit
-
-**Phase 3 (RAG System): ✅ CONSIDER SUBAGENT**
-- **Task:** "Index PDFs to Pinecone and test retrieval quality with 10 sample queries"
-- **Why it works:** PDF ingestion and indexing can be isolated
-- **We verify:** Citations accurate, chunks relevant, retrieval < 3s
-- **Subagent deliverable:** Working indexer + test results showing quality metrics
-
-**Phase 4 (Emotion Markup Tools): ❌ NO SUBAGENTS**
-- **Reason:** Simple utility functions, fast to implement directly
-- Need manual testing of Fish Audio API integration
-- Tools are interdependent (validator → diff generator → preview)
-
-**Phase 5 (Frontend UI): ❌ NO SUBAGENTS**
-- **Reason:** Small React components (~100-200 lines each), faster to build sequentially
-- Shared patterns (styling, LiveKit hooks, TypeScript) benefit from consistency
-- All components integrate together, easier to ensure cohesion
-- Coordination overhead outweighs time savings for small tasks
-
-**Phase 6 (Integration & Testing): ❌ NO SUBAGENTS**
-- **Reason:** End-to-end testing requires manual verification
-- User experience testing cannot be automated
-- Need to "feel" the conversation flow
-
 #### Decision Criteria
 
 **✅ Use subagent when:**
@@ -1488,14 +1449,6 @@ stt=deepgram.STT(
 - Need to "feel" the user experience (voice latency, conversation flow)
 - Task is quick to do directly (<30 min)
 - Implementation requires iterative refinement based on manual testing
-
-#### Subagent Invocation Templates
-
-**For RAG Indexing (Phase 3):**
-```
-Use Task tool with subagent_type="general-purpose"
-Prompt: "Index PDFs to Pinecone following TDD Section 4.2.3. Test retrieval with 10 queries about Stanislavski and Linklater techniques. Report: indexing time, vector count, retrieval quality (relevance 1-5), average latency."
-```
 
 ---
 
