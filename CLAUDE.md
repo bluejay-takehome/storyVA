@@ -62,7 +62,7 @@ python main.py                    # Run agent (when ready)
 ## Key Constraints
 
 - Must use LiveKit (GUIDELINES.md)
-- Single git repo (already flattened)
+- Single git repo
 - Custom Fish Audio TTS required (not built-in)
 - Interviewer will test RAG with random PDF questions
 
