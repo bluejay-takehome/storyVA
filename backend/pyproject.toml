@@ -20,8 +20,10 @@ dependencies = [
     "llama-index>=0.14.5",
     "llama-index-embeddings-openai>=0.5.1",
     "llama-index-vector-stores-pinecone>=0.7.1",
+    "ormsgpack>=1.11.0",
     "pinecone-client>=6.0.0",
     "pydantic>=2.12.3",
     "pypdf>=6.1.2",
     "python-dotenv>=1.1.1",
+    "websockets>=15.0.1",
 ]

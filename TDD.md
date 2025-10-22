@@ -1359,6 +1359,74 @@ stt=deepgram.STT(
 
 ---
 
+### 7.8 Subagent Strategy
+
+**Purpose:** Document when and how to use Claude Code subagents for parallel/isolated tasks during development.
+
+#### When to Use Subagents
+
+**Phase 2 (Backend Core): ❌ NO SUBAGENTS**
+- **Reason:** Components tightly coupled (STT → LLM → TTS pipeline)
+- Need sequential testing and debugging
+- Fish Audio TTS is custom implementation requiring careful integration
+- Voice pipeline must be tested as a cohesive unit
+
+**Phase 3 (RAG System): ✅ CONSIDER SUBAGENT**
+- **Task:** "Index PDFs to Pinecone and test retrieval quality with 10 sample queries"
+- **Why it works:** PDF ingestion and indexing can be isolated
+- **We verify:** Citations accurate, chunks relevant, retrieval < 3s
+- **Subagent deliverable:** Working indexer + test results showing quality metrics
+
+**Phase 4 (Emotion Markup Tools): ❌ NO SUBAGENTS**
+- **Reason:** Simple utility functions, fast to implement directly
+- Need manual testing of Fish Audio API integration
+- Tools are interdependent (validator → diff generator → preview)
+
+**Phase 5 (Frontend UI): ✅ USE SUBAGENTS IN PARALLEL**
+- **Agent 1:** StoryEditor.tsx + DiffViewer.tsx (related components)
+- **Agent 2:** LiveTranscript.tsx + CallControls.tsx (related components)
+- **Main session:** Integration into app/story/page.tsx + LiveKit connection
+- **Why it works:** UI components are independent, can build concurrently
+- **Time savings:** ~40% faster than sequential implementation
+
+**Phase 6 (Integration & Testing): ❌ NO SUBAGENTS**
+- **Reason:** End-to-end testing requires manual verification
+- User experience testing cannot be automated
+- Need to "feel" the conversation flow
+
+#### Decision Criteria
+
+**✅ Use subagent when:**
+- Task is isolated/modular with clear boundaries
+- Success criteria are clear and testable
+- Can verify output without deep integration testing
+- Time savings from parallelization (>30 min tasks)
+- Task doesn't require "feeling" the UX
+
+**❌ Don't use subagent when:**
+- Components are tightly coupled
+- Requires sequential debugging (A must work before testing B)
+- Need to "feel" the user experience (voice latency, conversation flow)
+- Task is quick to do directly (<30 min)
+- Implementation requires iterative refinement based on manual testing
+
+#### Subagent Invocation Templates
+
+**For RAG Indexing (Phase 3):**
+```
+Use Task tool with subagent_type="general-purpose"
+Prompt: "Index PDFs to Pinecone following TDD Section 4.2.3. Test retrieval with 10 queries about Stanislavski and Linklater techniques. Report: indexing time, vector count, retrieval quality (relevance 1-5), average latency."
+```
+
+**For Frontend Components (Phase 5):**
+```
+Use Task tool with subagent_type="general-purpose" (parallel invocations)
+Agent 1: "Implement StoryEditor.tsx and DiffViewer.tsx per TDD Section 4.1. Use react-diff-viewer for inline diffs. Test with sample story text."
+Agent 2: "Implement LiveTranscript.tsx and CallControls.tsx per TDD Section 4.1. Use LiveKit React components. Test connection states."
+```
+
+---
+
 ## 8. Deployment Strategy
 
 ### 8.1 Local Deployment (Primary Goal)

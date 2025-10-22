@@ -6,14 +6,11 @@ Personality: Brilliant strategist turned voice director, concise and commanding.
 """
 import os
 import logging
+from livekit.agents import JobContext, JobProcess
 from agent.state import StoryState
+from agent.voice_pipeline import create_agent_session
 
 logger = logging.getLogger(__name__)
-
-
-# TODO: Phase 2 - Implement actual agent
-# from livekit.agents import Agent, function_tool, RunContext, JobContext
-# from rag.retriever import VoiceActingRetriever
 
 
 # Agent personality and instructions (from PRD Section 6)
@@ -36,12 +33,12 @@ EMOTION MARKUP RULES (Fish Audio):
 WORKFLOW:
 1. User describes intent
 2. You analyze story context
-3. Retrieve technique if relevant (use RAG tool)
+3. Retrieve technique if relevant (use RAG tool - coming in Phase 3)
 4. Suggest specific markup changes
 5. Present diff visually (don't speak tags)
 6. Wait for user approval
 
-PREVIEW TOOL USAGE:
+PREVIEW TOOL USAGE (coming in Phase 4):
 - When user asks "how would this sound?", call preview_line_audio
 - Automatically infer character gender from context (pronouns, names, attribution)
 - Example: "she said" → gender="female", "Marcus replied" → gender="male"
@@ -52,62 +49,62 @@ STYLE EXAMPLES:
 - "Stanislavski's emotion memory - we apply it by... Observe."
 - "Too vague. Specify the emotion's purpose."
 - "Applied. The subtlety serves the moment better."
+
+CURRENT PHASE:
+You are in Phase 2 (Backend Core). RAG tools and emotion markup tools are not yet available.
+Focus on conversational interaction and demonstrating your personality.
+When users ask about voice direction, provide general guidance using your knowledge.
 """
 
 
-# TODO: Phase 2 - Implement LelouchAgent class
-# class LelouchAgent(Agent):
-#     def __init__(self, rag_retriever: VoiceActingRetriever):
-#         super().__init__(instructions=LELOUCH_INSTRUCTIONS)
-#         self.rag_retriever = rag_retriever
-#
-#     @function_tool()
-#     async def search_acting_technique(
-#         self,
-#         context: RunContext[StoryState],
-#         query: str,
-#     ) -> str:
-#         """Search voice acting books for techniques."""
-#         result = await self.rag_retriever.search(query)
-#         return result
-#
-#     @function_tool()
-#     async def suggest_emotion_markup(
-#         self,
-#         context: RunContext[StoryState],
-#         line_text: str,
-#         emotions: list[str],
-#         explanation: str,
-#     ) -> dict:
-#         """Create emotion markup suggestion."""
-#         # TODO: Generate diff, store in context.userdata.pending_diff
-#         pass
-#
-#     @function_tool()
-#     async def preview_line_audio(
-#         self,
-#         context: RunContext[StoryState],
-#         marked_up_text: str,
-#         character_gender: str,
-#     ) -> str:
-#         """Generate audio preview with Fish Audio using character's voice."""
-#         # TODO: Call Fish Audio API with appropriate voice_id
-#         pass
+async def prewarm(proc: JobProcess):
+    """
+    Preload heavy resources once per worker.
 
-
-async def prewarm(proc):
-    """Preload heavy resources once per worker."""
+    This function runs once when the worker starts, before any rooms are joined.
+    Use for loading models, initializing databases, etc.
+    """
     logger.info("Prewarming agent resources...")
-    # TODO: Initialize RAG retriever
-    logger.info("Prewarm complete")
+
+    # TODO: Phase 3 - Initialize RAG retriever
+    # global rag_retriever
+    # rag_retriever = VoiceActingRetriever()
+
+    logger.info("Prewarm complete (Phase 2: No RAG yet)")
 
 
-async def entrypoint(ctx):
-    """Main entry point for each room connection."""
+async def entrypoint(ctx: JobContext):
+    """
+    Main entry point for each room connection.
+
+    This function runs every time the agent joins a LiveKit room.
+    Sets up the session and starts the conversation.
+    """
     logger.info(f"Agent joining room: {ctx.room.name}")
-    # TODO: Phase 2
-    # - Connect to room
-    # - Initialize StoryState
-    # - Create agent session
-    # - Start conversation
-    logger.info("Entrypoint stub (Phase 2 implementation pending)")
+
+    # Connect to the LiveKit room
+    await ctx.connect()
+    logger.info("Connected to LiveKit room")
+
+    # Initialize session state
+    story_state = StoryState()
+    logger.info("Initialized StoryState")
+
+    # Create agent session with voice pipeline
+    session = await create_agent_session(story_state)
+    logger.info("Created agent session with voice pipeline")
+
+    # Start the session
+    await session.start(
+        room=ctx.room,
+        instructions=LELOUCH_INSTRUCTIONS,
+    )
+    logger.info("Agent session started")
+
+    # Generate initial greeting
+    await session.agent.say(
+        "Ah, you've come seeking my expertise. I am Lelouch. "
+        "Tell me about your story - let us transform it into something extraordinary.",
+        allow_interruptions=True,
+    )
+    logger.info("Initial greeting delivered")

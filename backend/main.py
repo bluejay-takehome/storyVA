@@ -8,6 +8,8 @@ Agent personality: Lelouch - brilliant strategist turned voice director.
 import os
 import logging
 from dotenv import load_dotenv
+from livekit.agents import cli, WorkerOptions
+from agent.lelouch import entrypoint, prewarm
 
 # Load environment variables
 load_dotenv()
@@ -20,8 +22,8 @@ logging.basicConfig(
 logger = logging.getLogger("storyva")
 
 
-def main():
-    """Main entry point for StoryVA backend."""
+def verify_environment():
+    """Verify all required environment variables are present."""
     logger.info("=" * 60)
     logger.info("  StoryVA - Voice Director Agent")
     logger.info("=" * 60)
@@ -41,7 +43,7 @@ def main():
     if missing_vars:
         logger.error(f"Missing required environment variables: {', '.join(missing_vars)}")
         logger.error("Please check backend/.env file")
-        return 1
+        return False
 
     # Check for OpenAI API key (can be in system env or .env)
     if not os.getenv("OPENAI_API_KEY"):
@@ -50,25 +52,22 @@ def main():
 
     logger.info("✅ Environment configuration verified")
     logger.info("")
-
-    # TODO: Phase 2 - Implement LiveKit agent worker
-    # from livekit.agents import cli, WorkerOptions
-    # from agent.lelouch import entrypoint, prewarm
-    #
-    # cli.run_app(
-    #     WorkerOptions(
-    #         entrypoint_fnc=entrypoint,
-    #         prewarm_fnc=prewarm,
-    #     )
-    # )
-
-    logger.info("Backend structure ready!")
-    logger.info("Next: Implement voice pipeline in Phase 2")
-    logger.info("")
+    logger.info("Starting LiveKit agent worker...")
     logger.info("=" * 60)
+    logger.info("")
 
-    return 0
+    return True
 
 
 if __name__ == "__main__":
-    exit(main())
+    # Verify environment before starting
+    if not verify_environment():
+        exit(1)
+
+    # Start LiveKit agent worker
+    cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+            prewarm_fnc=prewarm,
+        )
+    )
