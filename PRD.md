@@ -96,7 +96,7 @@ Proposed: (disappointed)(soft tone) "I can't believe you did this," she said, (s
 **RAG Query Examples:**
 - User: "How can I make this breakup scene more heartbreaking?"
   - RAG retrieves: Stanislavski's emotion memory techniques
-  - Agent response: "Stanislavski suggests using emotion memory to access genuine sadness. For this line, I suggest adding sadness with a sigh to show the weight of the moment, combined with a long pause before the final words to create dramatic tension. Check the diff."
+  - Agent response: "Stanislavski suggests using emotion memory to access genuine sadness. For this line, I suggest adding sadness with a sigh to show the weight of the moment, combined with a long pause before the final words to create dramatic tension. How's this?"
 
 - User: "This character should sound more commanding"
   - RAG retrieves: Linklater's vocal power and breath support sections
@@ -140,7 +140,7 @@ User: "Make the part where she leaves more emotional"
 Agent: "I found that scene. Drawing from Stanislavski's work on subtext,
        this moment carries unspoken pain. I suggest adding regret with a
        whisper tone and a quiet sob - it'll show the internal conflict
-       with visceral emotion. Take a look at the diff. Should I apply this?"
+       with visceral emotion. How's this?"
 [Diff shows on screen: (regretful)(whispering) "Goodbye," she whispered, (sobbing).]
 
 User: "Yes, but make it softer"
