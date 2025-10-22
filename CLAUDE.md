@@ -4,7 +4,7 @@ Guidance for Claude Code when working with the StoryVA project.
 
 ## Core Documentation
 
-**READ THESE FIRST** before making implementation decisions or when refreshing your memoryua:
+**READ THESE FIRST** before making implementation decisions or when refreshing your memory:
 
 - **[PRD.md](./PRD.md)** - Product requirements, user flows, agent personality, Fish Audio emotion rules
 - **[TDD.md](./TDD.md)** - System architecture, component designs, implementation code examples, development plan
