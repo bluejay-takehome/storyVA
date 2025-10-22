@@ -1,8 +1,8 @@
 # Technical Design Document: Voice Director Agent
 **Project:** StoryVA - Voice Acting Direction Agent
-**Version:** 1.0
-**Date:** October 22, 2025
-**Status:** Ready for Implementation
+**Version:** 1.1
+**Date:** October 22, 2025 (Updated after repository flattening)
+**Status:** In Progress - Phase 1 70% Complete
 
 ---
 
@@ -1216,16 +1216,21 @@ stt=deepgram.STT(
 **Goal:** Repository setup, basic infrastructure
 
 **Tasks:**
-- [ ] Flatten git repo (remove submodules, commit frontend/backend directly)
-- [ ] Create unified `.gitignore` (Python + Node.js)
-- [ ] Set up environment variable templates
-- [ ] Initialize Next.js frontend with TypeScript
-- [ ] Set up Python backend with uv + pyproject.toml
-- [ ] Install all dependencies
-- [ ] Create basic folder structure
+- [x] Flatten git repo (remove submodules, commit frontend/backend directly)
+- [x] Initialize Next.js 14 frontend with TypeScript, Tailwind CSS, ESLint
+- [x] Set up Python backend with uv + pyproject.toml
+- [x] Install backend dependencies (LiveKit, LlamaIndex, Pinecone, Fish Audio)
+- [x] Install frontend dependencies (Next.js, React, Tailwind)
+- [x] Create Pinecone index (`storyva-voice-acting`)
+- [x] Configure environment variables in `backend/.env`
+- [ ] Create unified `.gitignore` (merge existing)
+- [ ] Set up environment variable templates (`.env.example`)
+- [ ] Create basic folder structure in backend (`agent/`, `rag/`, `tts/`, `tools/`)
 - [ ] Set up dev scripts (`npm run dev`, `python main.py start`)
 
 **Deliverable:** Clean single repository, both frontend and backend runnable
+
+**Status:** ~70% Complete (infrastructure done, need folder structure & dev scripts)
 
 ---
 
@@ -1253,7 +1258,8 @@ stt=deepgram.STT(
 **Goal:** Pinecone indexing and retrieval working
 
 **Tasks:**
-- [ ] Move PDF files to `backend/data/pdfs/`
+- [x] Move PDF files to `backend/data/pdfs/` (already present)
+- [x] Create Pinecone index `storyva-voice-acting` (already created)
 - [ ] Implement `backend/rag/indexer.py`
 - [ ] Run one-time indexing script (`python scripts/index_pdfs.py`)
 - [ ] Verify Pinecone index populated (check dashboard)
@@ -1611,20 +1617,26 @@ async def test_fish_audio_preview():
 
 ## 13. Next Steps
 
+**Completed:**
+1. ✅ TDD approved
+2. ✅ Repository flattened (single repo, no submodules)
+3. ✅ Fresh Next.js 14 frontend initialized
+4. ✅ Backend dependencies installed (uv, LiveKit, LlamaIndex, Pinecone)
+5. ✅ Pinecone index created (`storyva-voice-acting`)
+6. ✅ Environment variables configured
+
 **Immediate Actions:**
-1. ✅ Approve this TDD
-2. [ ] Flatten repository structure (remove submodules)
-3. [ ] Set up development environment
-4. [ ] Begin Phase 1 implementation
+1. [ ] Complete Phase 1 (folder structure, `.env.example`, dev scripts)
+2. [ ] Begin Phase 2: Backend Core (LiveKit agent, voice pipeline)
+3. [ ] Implement custom Fish Audio TTS integration
+4. [ ] Implement RAG indexing and retrieval
 
 **First Milestone:** Working LiveKit agent with Lelouch personality (Phase 2 complete)
 
-**Questions for User:**
-- Ready to proceed with implementation?
-- Any concerns about the architecture?
-- Want to adjust timeline or priorities?
+**Current Status:** Phase 1 ~70% complete, ready to continue implementation
 
 ---
 
 **Document Status:** ✅ Ready for Implementation
+**Last Updated:** October 22, 2025
 **Next Document:** `DEPLOYMENT.md` (to be created in Phase 7)
