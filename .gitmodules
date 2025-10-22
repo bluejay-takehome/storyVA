@@ -1,6 +1,0 @@
-[submodule "frontend"]
-	path = frontend
-	url = https://github.com/bluejay-takehome/storyVA-frontend.git
-[submodule "backend"]
-	path = backend
-	url = https://github.com/bluejay-takehome/storyVA-backend.git
