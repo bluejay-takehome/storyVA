@@ -58,7 +58,7 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
       console.log('Latest agent transcription:', latest);
 
       // Add to messages if it's a final transcription and not already added
-      if (latest.isFinal && latest.text) {
+      if ((latest.isFinal || latest.final) && latest.text) {
         const messageId = `agent-${latest.timestamp || Date.now()}`;
 
         // Check if message already exists
