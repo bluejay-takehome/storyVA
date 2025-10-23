@@ -64,6 +64,9 @@ export function useRoom(appConfig: AppConfig) {
 
         console.log('Fetching LiveKit token from:', url.toString());
 
+        // Get story text from localStorage to send to agent
+        const storyText = localStorage.getItem('storyva-story-content') || '';
+
         try {
           const res = await fetch(url.toString(), {
             method: 'POST',
@@ -73,7 +76,12 @@ export function useRoom(appConfig: AppConfig) {
             body: JSON.stringify({
               room_config: appConfig.agentName
                 ? {
-                    agents: [{ agent_name: appConfig.agentName }],
+                    agents: [{
+                      agent_name: appConfig.agentName,
+                      metadata: JSON.stringify({
+                        story_text: storyText,
+                      }),
+                    }],
                   }
                 : undefined,
             }),

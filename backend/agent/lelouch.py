@@ -5,9 +5,11 @@ Agent that helps writers add Fish Audio emotion markup to their stories.
 Personality: Brilliant strategist turned voice director, concise and commanding.
 """
 import os
+import json
 import logging
 from typing import List
 from livekit.agents import Agent, JobContext, JobProcess, function_tool, RunContext
+from livekit.agents.llm import ChatContext, ChatMessage
 from agent.state import StoryState
 from agent.voice_pipeline import create_agent_session
 from rag.retriever import VoiceActingRetriever
@@ -30,8 +32,11 @@ class LelouchAgent(Agent):
     professional emotion markup to their stories using Fish Audio's TTS system.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, chat_ctx: ChatContext | None = None, story_state: StoryState | None = None) -> None:
+        # Store reference to story state for accessing current story text
+        self._story_state = story_state
         super().__init__(
+            chat_ctx=chat_ctx,
             instructions="""You are Lelouch, a brilliant strategist turned voice director.
 
 PERSONALITY:
@@ -41,13 +46,21 @@ PERSONALITY:
 - Theatrical but commanding tone
 - Reference techniques briefly, then move to action
 
+STORY CONTEXT:
+You can see the user's current story in <current_story> tags. This is updated in real-time.
+- Analyze the story to understand character emotions, scenes, and context
+- Reference specific lines from the story when suggesting improvements
+- Be proactive: identify scenes that need refinement without waiting to be asked
+- If there's no story yet, acknowledge and wait for the user to paste their text
+
 CONVERSATION vs TOOLS:
-- NORMAL CONVERSATION: When user greets you, asks questions, or discusses their story generally
-  → Respond conversationally: "I'm here. What scene needs refinement?"
-- USE TOOLS: Only when user explicitly wants to work on specific story text
-  → User shares a line from their story that needs emotion markup
-  → User asks about voice acting techniques
-  → User wants to hear how a marked-up line sounds
+- NORMAL CONVERSATION: When user greets you, asks general questions, or discusses their story
+  → Be proactive if you see the story: "I see the breakup scene in your story could use more emotional depth."
+  → If no story yet: "I'm here. Paste your story and we'll begin."
+- USE TOOLS: When working on specific story elements
+  → User asks about voice acting techniques → use search_acting_technique
+  → User wants emotion markup for specific lines → use suggest_emotion_markup
+  → User wants to hear how marked-up text sounds → use preview_line_audio
 
 EMOTION MARKUP RULES (Fish Audio):
 - Emotion tags MUST be at sentence start: (sad) "text"
@@ -297,6 +310,42 @@ Phase 4A complete. All tools are active:
             logger.error(f"Failed to generate audio preview: {e}", exc_info=True)
             return f"Error generating audio preview: {str(e)}"
 
+    async def on_user_turn_completed(
+        self, turn_ctx: ChatContext, new_message: ChatMessage
+    ) -> None:
+        """
+        Update story text in context before each LLM response.
+
+        Removes previous story injection and adds latest version from story state.
+        This ensures the LLM always sees the current story without accumulation.
+        """
+        if not self._story_state:
+            logger.warning("No story state available in on_user_turn_completed")
+            return
+
+        # Remove previous story injection (if any)
+        turn_ctx.items = [
+            item for item in turn_ctx.items
+            if not (isinstance(item, ChatMessage) and
+                    item.role == "system" and
+                    "<current_story>" in item.content)
+        ]
+
+        # Inject latest story from story state
+        story_text = self._story_state.current_text
+        if story_text:
+            turn_ctx.add_message(
+                role="system",
+                content=f"<current_story>\n{story_text}\n</current_story>"
+            )
+            logger.debug(f"Injected current story into context ({len(story_text)} chars)")
+        else:
+            turn_ctx.add_message(
+                role="system",
+                content="<current_story>No story text yet. User hasn't pasted their story.</current_story>"
+            )
+            logger.debug("No story text available - added empty story marker")
+
 
 def prewarm(proc: JobProcess):
     """
@@ -334,14 +383,49 @@ async def entrypoint(ctx: JobContext):
 
     # Initialize session state
     story_state = StoryState()
+
+    # Parse job metadata to get initial story text
+    if ctx.job.metadata:
+        try:
+            metadata = json.loads(ctx.job.metadata)
+            story_text = metadata.get("story_text", "")
+            story_state.current_text = story_text
+            logger.info(f"Loaded initial story text from metadata ({len(story_text)} chars)")
+        except Exception as e:
+            logger.error(f"Failed to parse job metadata: {e}")
+
     logger.info("Initialized StoryState")
+
+    # Set up data channel listener for real-time story updates
+    @ctx.room.on("data_received")
+    def on_data_received(data: bytes, participant):
+        """Handle story text updates from frontend via data channel."""
+        try:
+            message = json.loads(data.decode('utf-8'))
+            if message.get('type') == 'story_update':
+                new_text = message.get('text', '')
+                story_state.current_text = new_text
+                logger.info(f"Story text updated via data channel ({len(new_text)} chars)")
+        except Exception as e:
+            logger.error(f"Failed to parse data channel message: {e}")
+
+    logger.info("Data channel listener configured")
+
+    # Create initial chat context with story text
+    initial_ctx = ChatContext()
+    if story_state.current_text:
+        initial_ctx.add_message(
+            role="system",
+            content=f"<current_story>\n{story_state.current_text}\n</current_story>"
+        )
+        logger.info("Added initial story to chat context")
 
     # Create agent session with voice pipeline
     session = await create_agent_session(story_state)
     logger.info("Created agent session with voice pipeline")
 
     # Start the session with LelouchAgent (tools auto-register from Agent class)
-    await session.start(agent=LelouchAgent(), room=ctx.room)
+    await session.start(agent=LelouchAgent(chat_ctx=initial_ctx, story_state=story_state), room=ctx.room)
     logger.info("Agent session started with all Phase 4A tools (RAG + emotion markup + preview)")
 
     # Connect to the LiveKit room (after session start)

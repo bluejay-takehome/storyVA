@@ -46,12 +46,13 @@ export async function POST(req: Request) {
     // Parse request body
     const body = await req.json();
     const agentName = body?.room_config?.agents?.[0]?.agent_name;
+    const agentMetadata = body?.room_config?.agents?.[0]?.metadata;
 
     // Generate unique room and participant identifiers
     const roomName = `storyva_room_${Math.floor(Math.random() * 10_000)}`;
     const participantIdentity = `writer_${Math.floor(Math.random() * 10_000)}`;
 
-    console.log('Generating token:', { roomName, participantIdentity, agentName });
+    console.log('Generating token:', { roomName, participantIdentity, agentName, hasMetadata: !!agentMetadata });
 
     // Create access token with participant info
     const at = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
@@ -75,10 +76,11 @@ export async function POST(req: Request) {
         agents: [
           new RoomAgentDispatch({
             agentName,
+            metadata: agentMetadata,  // Pass story text metadata to agent
           }),
         ],
       };
-      console.log('Agent configured in room:', agentName);
+      console.log('Agent configured in room:', agentName, 'with metadata:', !!agentMetadata);
     }
 
     // Generate JWT token

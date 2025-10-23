@@ -8,6 +8,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRoomContext } from '@livekit/components-react';
 import { InlineDiff } from './InlineDiff';
 
 const STORAGE_KEY = 'storyva-story-content';
@@ -36,6 +37,7 @@ interface PendingDiff {
 export function StoryEditor({ className = '' }: StoryEditorProps) {
   const [content, setContent] = useState('');
   const [pendingDiffs, setPendingDiffs] = useState<PendingDiff[]>([]);
+  const room = useRoomContext();
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -50,6 +52,21 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     const newContent = e.target.value;
     setContent(newContent);
     localStorage.setItem(STORAGE_KEY, newContent);
+
+    // Send story update to agent via data channel (if connected)
+    if (room && room.localParticipant) {
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(JSON.stringify({
+          type: 'story_update',
+          text: newContent,
+        }));
+        room.localParticipant.publishData(data, { reliable: true });
+        console.log('Story update sent to agent via data channel');
+      } catch (error) {
+        console.error('Failed to send story update:', error);
+      }
+    }
   };
 
   // Accept a diff - replace original text with proposed text
