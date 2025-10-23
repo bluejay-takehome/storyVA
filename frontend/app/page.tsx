@@ -10,6 +10,7 @@
 import { RoomAudioRenderer, StartAudio } from '@livekit/components-react';
 import { SessionProvider, useSession } from '@/components/SessionProvider';
 import { StoryEditor } from '@/components/StoryEditor';
+import { LiveTranscript } from '@/components/LiveTranscript';
 import { APP_CONFIG } from '@/app-config';
 
 function MainView() {
@@ -72,16 +73,8 @@ function MainView() {
 
       {/* Right panel - Transcript (appears during session) */}
       {isSessionActive && (
-        <div className="w-96 border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6">
-          <h2 className="text-xl font-semibold text-zinc-900 dark:text-zinc-50 mb-4">
-            Conversation
-          </h2>
-          <div className="text-zinc-600 dark:text-zinc-400 text-sm">
-            <p className="mb-2">Transcript will appear here...</p>
-            <p className="text-xs text-zinc-500 dark:text-zinc-500">
-              (LiveTranscript component - Phase 5B)
-            </p>
-          </div>
+        <div className="w-96 border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 flex flex-col">
+          <LiveTranscript className="flex-1" />
         </div>
       )}
     </div>
