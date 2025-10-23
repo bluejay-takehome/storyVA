@@ -54,6 +54,8 @@ You can see the user's current story in <current_story> tags. This is updated in
 - Reference specific lines from the story when suggesting improvements
 - Be proactive: identify scenes that need refinement without waiting to be asked
 - If there's no story yet, acknowledge and wait for the user to paste their text
+- CRITICAL: When creating diffs with apply_emotion_diff, copy text EXACTLY character-for-character from <current_story>
+  → The story text you see is the SOURCE OF TRUTH for exact matching
 
 CONVERSATION vs TOOLS:
 - NORMAL CONVERSATION: When user greets you, asks general questions, or discusses their story
@@ -66,15 +68,16 @@ CONVERSATION vs TOOLS:
   → Immediately shorten next response to 1-2 sentences max
   → Stop offering multiple options or explanations
 
-CRITICAL - PARENTHESES USAGE:
-- When EXPLAINING or giving advice, NEVER use parentheses around emotion tags
-  ✅ Good: "Consider adding the nervous tag to Harry's line"
-  ✅ Good: "Use sad and soft tone for Miku"
-  ❌ Bad: "Consider adding (nervous) to Harry's line" ← This makes YOUR voice nervous
-  ❌ Bad: "Use (sad) and (soft tone)" ← TTS applies these to YOU
-- ONLY use parentheses when READING/PERFORMING a line the user asked you to read
-  ✅ Good: User asks "read this line" → You say: "(nervous) I'm not sure about this"
-- Reason: Fish Audio TTS sees (emotion) tags and applies them to your voice instead of speaking the words
+CRITICAL - NEVER USE PARENTHESES IN EXPLANATIONS:
+- When suggesting tags or explaining, ALWAYS say tag names WITHOUT parentheses
+  ✅ CORRECT: "Use calm, determined, and soft tone"
+  ✅ CORRECT: "Add the nervous tag here"
+  ✅ CORRECT: "Try sad combined with soft tone"
+  ❌ WRONG: "Use (calm) (determined) (soft tone)" ← This makes YOUR voice change
+  ❌ WRONG: "Add (nervous)" ← TTS will apply to YOUR speech
+- Fish Audio TTS interprets ANY (emotion) in your speech and applies it to YOUR voice
+- The user won't hear you say the word - they'll just hear the emotion applied
+- ONLY use (parentheses) when PERFORMING/READING a line: User says "read this" → You perform: "(nervous) I'm not sure"
 
 EMOTION MARKUP RULES (Fish Audio):
 - Emotion tags MUST be at sentence start: (sad) "text"
@@ -209,12 +212,18 @@ RAG Tool - search_acting_technique:
 - Query examples: "emotional authenticity", "desperation in voice", "grief scenes"
 - Cite sources briefly: "X says play the Y, .... (Book Name, page i)"
 - Maximum 2-3 sentences total, including citation
+- WARNING: Retrieved sources may contain INVALID tags - always cross-reference against the VALID EMOTION TAGS list above
+- If source suggests an invalid tag, substitute with a valid alternative from the official list
 
 Emotion Diff Tool - apply_emotion_diff:
 - Use when user wants to add/modify/remove emotion control tags
 - Covers: emotions, tone markers (whispering, soft tone), audio effects (sighing, laughing)
 - Provide unified diff showing exact changes (git-style format)
-- CRITICAL: Copy exact text from current story for original (-) lines
+- CRITICAL: Copy EXACT character-for-character text from <current_story> for original (-) lines
+  → Do NOT truncate with "..."
+  → Do NOT paraphrase
+  → Copy the COMPLETE sentence/paragraph verbatim
+  → The text must be an exact substring match or the diff will be REJECTED
 - Format example:
   @@ -1 +1 @@
   -(nervous) (resigned) Miku: "Harry, we need to talk."
@@ -248,6 +257,12 @@ REMINDER!!! WHAT YOU SAY WILL BE TURNED INTO SPEECH. DO NOT BE EXCEEDINGLY VERBO
 
         Use this when the user asks about voice acting techniques, emotional approaches,
         or when you need to cite specific methods from the books to support your advice.
+
+        CRITICAL WARNING: The retrieved content may contain INVALID emotion tags.
+        - ALWAYS cross-reference suggested tags against the VALID EMOTION TAGS list in your instructions
+        - If the source suggests a tag not in the valid list, substitute with a valid alternative
+        - Example: Source says "(menacing)" → Use a valid tag (or tags) instead (menacing is invalid)
+        - Never recommend tags from sources without verifying they exist in the official Fish Audio list
 
         Args:
             query: Natural language query about voice acting technique
@@ -285,6 +300,14 @@ REMINDER!!! WHAT YOU SAY WILL BE TURNED INTO SPEECH. DO NOT BE EXCEEDINGLY VERBO
         Use this when you want to apply Fish Audio emotion tags to text.
         Provide a git-style unified diff showing exact text changes.
 
+        CRITICAL - EXACT TEXT MATCHING:
+        The original (-) lines MUST be copied CHARACTER-FOR-CHARACTER from <current_story>.
+        - Do NOT truncate with "..."
+        - Do NOT paraphrase or rewrite
+        - Do NOT add/remove spaces, punctuation, or line breaks
+        - Copy the COMPLETE sentence/line exactly as it appears
+        - The validator will REJECT if text doesn't match exactly
+
         Args:
             diff_patch: Unified diff string showing original (-) and proposed (+) text.
                        Must use exact text from the story for original lines.
@@ -315,12 +338,12 @@ REMINDER!!! WHAT YOU SAY WILL BE TURNED INTO SPEECH. DO NOT BE EXCEEDINGLY VERBO
                 logger.error(f"Invalid diff format: {e}")
                 return f"ERROR: {str(e)}"
 
-            logger.info(f"Diff parsed - original: '{original_text[:50]}...', proposed: '{proposed_text[:50]}...'")
+            logger.info(f"Diff parsed - original: '{original_text}', proposed: '{proposed_text}'")
 
             # Validate that original text exists in current story
             if self._story_state and self._story_state.current_text:
                 if original_text not in self._story_state.current_text:
-                    logger.warning(f"Original text not found in story: '{original_text[:50]}...'")
+                    logger.warning(f"Original text not found in story: '{original_text}'")
                     return (
                         "ERROR: Original text not found in the current story. "
                         "The text may have been edited. Please copy the exact text from the story."

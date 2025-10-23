@@ -149,31 +149,48 @@ def validate_emotion_markup(text: str) -> ValidationResult:
             )
 
     # Check 2: Validate emotion tag placement (must be at sentence start)
-    # Emotion tags must appear before any actual text content
+    # Emotion tags must appear before any actual text content IN THEIR SENTENCE
 
-    # Strategy: Find the first non-tag character, then check if any emotion tags
-    # appear after that point
+    # Split by sentence boundaries (. ! ? followed by space or newline)
+    sentences = re.split(r'([.!?])\s+', text)
 
-    for tag_name, tag_pos in tags:
-        if get_tag_category(tag_name) == "emotion":
-            # Check if there's any text before this tag
-            text_before_tag = text[:tag_pos].strip()
+    # Reconstruct sentences with their punctuation
+    reconstructed_sentences = []
+    for i in range(0, len(sentences) - 1, 2):
+        if i + 1 < len(sentences):
+            reconstructed_sentences.append(sentences[i] + sentences[i + 1])
+    # Add last part if it exists (might not have punctuation)
+    if len(sentences) % 2 == 1:
+        reconstructed_sentences.append(sentences[-1])
 
-            # Remove any tags from text_before_tag to see if there's actual content
-            temp_text = text_before_tag
-            while '(' in temp_text:
-                start_idx = temp_text.find('(')
-                end_idx = temp_text.find(')', start_idx)
-                if end_idx == -1:
-                    break
-                temp_text = temp_text[:start_idx] + temp_text[end_idx + 1:]
+    for sentence in reconstructed_sentences:
+        sentence = sentence.strip()
+        if not sentence:
+            continue
 
-            # If there's any non-whitespace content before this emotion tag, it's invalid
-            if temp_text.strip():
-                errors.append(
-                    f"Emotion tag '({tag_name})' must be at sentence start, not mid-sentence. "
-                    f"Found text before tag: '{temp_text.strip()[:20]}...'"
-                )
+        # Extract tags from this sentence only
+        sentence_tags = extract_tags(sentence)
+
+        for tag_name, tag_pos in sentence_tags:
+            if get_tag_category(tag_name) == "emotion":
+                # Check if there's any text before this tag IN THIS SENTENCE
+                text_before_tag_in_sentence = sentence[:tag_pos].strip()
+
+                # Remove any tags to see if there's actual content
+                temp_text = text_before_tag_in_sentence
+                while '(' in temp_text:
+                    start_idx = temp_text.find('(')
+                    end_idx = temp_text.find(')', start_idx)
+                    if end_idx == -1:
+                        break
+                    temp_text = temp_text[:start_idx] + temp_text[end_idx + 1:]
+
+                # If there's any non-whitespace content before this emotion tag IN THIS SENTENCE, it's invalid
+                if temp_text.strip():
+                    errors.append(
+                        f"Emotion tag '({tag_name})' must be at sentence start, not mid-sentence. "
+                        f"Found text before tag: '{temp_text.strip()[:20]}...'"
+                    )
 
     # Check 3: Maximum 3 tags per sentence
     sentences = re.split(r'[.!?]\s*', text)
