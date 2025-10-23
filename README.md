@@ -7,9 +7,6 @@ To save the world, he got the whole world to hate him instead of eachother, and 
 
 In this context, Lelouch went into hiding after faking his death and now teaches disciples the way of persuasion.
 
-**Built for:** Bluejay Take-Home Interview
-**Submission Date:** October 2025
-
 ---
 
 ## Table of Contents
