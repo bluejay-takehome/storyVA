@@ -100,6 +100,7 @@ class FishAudioPreview:
             "reference_id": reference_id,
             "format": format,
             "latency": latency,
+            "model": "s1",  # Latest Fish Audio model
         }
 
         logger.info(

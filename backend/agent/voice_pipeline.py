@@ -18,7 +18,7 @@ async def create_agent_session(user_data: StoryState) -> AgentSession:
     - VAD: Silero for voice activity detection
     - STT: Deepgram Nova-3 for speech-to-text
     - LLM: OpenAI GPT-5 for conversation
-    - TTS: Fish Audio with Lelouch voice (supports 60+ emotion tags)
+    - TTS: Fish Audio S1 with Lelouch voice (supports 60+ emotion tags)
     - Turn Detection: End-of-utterance model for interruption handling
 
     Args:

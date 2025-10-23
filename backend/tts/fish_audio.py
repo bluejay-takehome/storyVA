@@ -30,7 +30,7 @@ class FishAudioTTS(tts.TTS):
         *,
         api_key: str,
         reference_id: str,  # Voice model ID
-        model: str = "speech-1.6",
+        model: str = "s1",  # Latest Fish Audio model
         latency: str = "normal",
         format: str = "mp3",  # SDK supports: mp3, wav, pcm
     ):
