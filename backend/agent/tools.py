@@ -8,7 +8,7 @@ from typing import List
 from livekit.agents.llm import function_tool
 from agent.state import StoryState
 from tools.emotion_validator import validate_emotion_markup, ValidationResult
-from tools.diff_generator import generate_emotion_diff, EmotionDiff
+from tools.diff_generator import generate_emotion_diff, EmotionDiff, parse_unified_diff
 from tools.fish_audio_preview import FishAudioPreview, infer_character_gender
 
 logger = logging.getLogger(__name__)
@@ -71,88 +71,61 @@ async def search_acting_technique(
 
 
 @function_tool()
-async def suggest_emotion_markup(
-    line_text: str,
-    emotions: List[str],
+async def apply_emotion_diff(
+    diff_patch: str,
     explanation: str,
 ) -> str:
     """
-    Suggest emotion markup for a line of dialogue.
+    Apply emotion control changes using unified diff format.
 
     Use this when you want to apply Fish Audio emotion tags to text.
-    The tool validates tags, generates a diff, and returns structured feedback.
+    Provide a git-style unified diff showing exact text changes.
 
     Args:
-        line_text: Original line of text/dialogue without markup
-        emotions: List of emotion tags to apply (e.g., ["sad", "whispering"])
-        explanation: Brief explanation of why these emotions were chosen (1-2 sentences)
+        diff_patch: Unified diff string showing original (-) and proposed (+) text.
+                   Must use exact text from the story for original lines.
+                   Format:
+                   @@ -1 +1 @@
+                   -(old text with tags)
+                   +(new text with tags)
+        explanation: Brief explanation of why these changes were made (1-2 sentences)
 
     Returns:
         JSON string with diff and validation results for frontend display
 
     Example:
-        User: "Make the breakup scene sadder"
-        line_text: "I can't do this anymore, she said."
-        emotions: ["sad", "soft tone", "sighing"]
-        explanation: "Regret and quiet resignation serve the moment better than anger."
+        User: "Remove the nervous tag from Miku's line"
+        diff_patch: '''@@ -1 +1 @@
+        -(nervous) (resigned) Miku: "Hello"
+        +(resigned) Miku: "Hello"
+        '''
+        explanation: "Remove nervous to simplify emotional state"
     """
     try:
-        logger.info(f"Suggesting emotion markup: {emotions} for '{line_text[:50]}...'")
+        logger.info("Parsing emotion markup diff...")
 
-        # Build proposed text with emotion tags
-        # Separate emotions (must be at start) from tone/effects (can go anywhere)
-        emotion_tags = []
-        tone_effects = []
+        # Parse unified diff to extract original and proposed text
+        try:
+            original_text, proposed_text = parse_unified_diff(diff_patch)
+        except ValueError as e:
+            logger.error(f"Invalid diff format: {e}")
+            return f"ERROR: {str(e)}"
 
-        for tag in emotions:
-            # Simple categorization - could use emotion_validator for better accuracy
-            if tag in ["whispering", "soft tone", "shouting", "screaming", "in a hurry tone"]:
-                tone_effects.append(tag)
-            elif tag in ["laughing", "sighing", "sobbing", "crying loudly", "gasping"]:
-                tone_effects.append(tag)
-            else:
-                emotion_tags.append(tag)
+        logger.info(f"Diff parsed - original: '{original_text[:50]}...', proposed: '{proposed_text[:50]}...'")
 
-        # Build proposed text
-        proposed_parts = []
+        # Note: This standalone tool doesn't have access to story state for validation
+        # The agent's version in lelouch.py does validate against current story
 
-        # Add emotion tags at start
-        if emotion_tags:
-            for tag in emotion_tags:
-                proposed_parts.append(f"({tag})")
-
-        # Add tone if at start
-        if tone_effects and not line_text.strip().startswith('"'):
-            proposed_parts.append(f"({tone_effects[0]})")
-            tone_effects = tone_effects[1:]
-
-        # Add the text
-        proposed_parts.append(line_text)
-
-        # Add remaining effects (e.g., before attribution)
-        if tone_effects:
-            # Simple heuristic: add before "she/he said" if present
-            proposed_text = " ".join(proposed_parts)
-            for effect in tone_effects:
-                # Insert before common attribution patterns
-                if " said" in proposed_text or " whispered" in proposed_text:
-                    proposed_text = proposed_text.replace(" said", f" ({effect}) said", 1)
-                    proposed_text = proposed_text.replace(" whispered", f" ({effect}) whispered", 1)
-                else:
-                    proposed_text += f" ({effect})"
-        else:
-            proposed_text = " ".join(proposed_parts)
-
-        # Validate the proposed markup
+        # Validate the proposed markup has valid Fish Audio tags
         validation = validate_emotion_markup(proposed_text)
 
         if not validation.is_valid:
             logger.warning(f"Validation errors: {validation.errors}")
             return f"ERROR: Invalid emotion markup. {'; '.join(validation.errors)}"
 
-        # Generate diff
+        # Generate diff for frontend display
         diff = generate_emotion_diff(
-            original_text=line_text,
+            original_text=original_text,
             proposed_text=proposed_text,
             explanation=explanation
         )

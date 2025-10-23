@@ -7,14 +7,14 @@ Personality: Brilliant strategist turned voice director, concise and commanding.
 import os
 import json
 import logging
-from typing import List
 from livekit.agents import Agent, JobContext, JobProcess, function_tool, RunContext
 from livekit.agents.llm import ChatContext, ChatMessage
+from livekit import rtc
 from agent.state import StoryState
 from agent.voice_pipeline import create_agent_session
 from rag.retriever import VoiceActingRetriever
 from tools.emotion_validator import validate_emotion_markup
-from tools.diff_generator import generate_emotion_diff
+from tools.diff_generator import generate_emotion_diff, parse_unified_diff
 from tools.fish_audio_preview import FishAudioPreview
 
 logger = logging.getLogger(__name__)
@@ -61,7 +61,7 @@ CONVERSATION vs TOOLS:
   → If no story yet: "I'm here. Paste your story and we'll begin."
 - USE TOOLS: When working on specific story elements
   → User asks about voice acting techniques → use search_acting_technique
-  → User wants emotion markup for specific lines → use suggest_emotion_markup
+  → User wants emotion control for specific lines → use apply_emotion_diff
   → User wants to hear how marked-up text sounds → use preview_line_audio
 
 EMOTION MARKUP RULES (Fish Audio):
@@ -85,7 +85,7 @@ WORKFLOW:
 1. User describes intent or shares story text
 2. You analyze story context
 3. Retrieve technique if relevant using search_acting_technique(query)
-4. Suggest specific markup changes using suggest_emotion_markup(line_text, emotions, explanation)
+4. Apply emotion control changes using apply_emotion_diff(diff_patch, explanation)
 5. After tool returns result, acknowledge concisely: "Applied. See the diff above."
    → DO NOT speak the JSON output from tools
    → The diff appears visually in the UI
@@ -100,12 +100,24 @@ RAG Tool - search_acting_technique:
 - Cite the sources returned (book title, author, page number)
 - Synthesize techniques into concise advice (2-4 sentences)
 
-Emotion Markup Tool - suggest_emotion_markup:
-- Use ONLY when user shares specific story text that needs emotion markup
-- Provide: original line text, list of emotions, brief explanation
-- Tool returns JSON diff (user sees it visually in UI)
-- After calling tool, acknowledge briefly: "Applied. Check the diff above."
-- NEVER speak the JSON output - just acknowledge the action
+Emotion Diff Tool - apply_emotion_diff:
+- Use when user wants to add/modify/remove emotion control tags
+- Covers: emotions, tone markers (whispering, soft tone), audio effects (sighing, laughing)
+- Provide unified diff showing exact changes (git-style format)
+- CRITICAL: Copy exact text from current story for original (-) lines
+- Format example:
+  @@ -1 +1 @@
+  -(nervous) (resigned) Miku: "Harry, we need to talk."
+  +(resigned) (soft tone) Miku: "Harry, we need to talk."
+- Multi-line changes supported:
+  @@ -1,2 +1,2 @@
+  -Line 1 with old tags
+  -Line 2 with old tags
+  +Line 1 with new tags
+  +Line 2 with new tags
+- Tool validates: exact match in story, valid Fish Audio emotion control tags
+- After calling, acknowledge: "Applied. Check the diff above."
+- NEVER speak the JSON output
 
 Audio Preview Tool - preview_line_audio:
 - Use when user asks "how would this sound?" or requests audio preview
@@ -126,7 +138,7 @@ STYLE EXAMPLES:
 CURRENT PHASE:
 Phase 4A complete. All tools are active:
 - RAG: search_acting_technique (cite Stanislavski and Linklater)
-- Emotion markup: suggest_emotion_markup (validate and diff)
+- Emotion control: apply_emotion_diff (unified diff format, validation)
 - Audio preview: preview_line_audio (Fish Audio with character voices)
 """
         )
@@ -167,86 +179,71 @@ Phase 4A complete. All tools are active:
             return f"Error retrieving technique: {str(e)}"
 
     @function_tool
-    async def suggest_emotion_markup(
+    async def apply_emotion_diff(
         self,
         context: RunContext[StoryState],
-        line_text: str,
-        emotions: List[str],
+        diff_patch: str,
         explanation: str,
     ) -> str:
         """
-        Suggest emotion markup for a line of dialogue.
+        Apply emotion control changes using unified diff format.
 
         Use this when you want to apply Fish Audio emotion tags to text.
-        The tool validates tags, generates a diff, and returns structured feedback.
+        Provide a git-style unified diff showing exact text changes.
 
         Args:
-            line_text: Original line of text/dialogue without markup
-            emotions: List of emotion tags to apply (e.g., ["sad", "whispering"])
-            explanation: Brief explanation of why these emotions were chosen (1-2 sentences)
+            diff_patch: Unified diff string showing original (-) and proposed (+) text.
+                       Must use exact text from the story for original lines.
+                       Format:
+                       @@ -1 +1 @@
+                       -(old text with tags)
+                       +(new text with tags)
+            explanation: Brief explanation of why these changes were made (1-2 sentences)
 
         Returns:
             JSON string with diff and validation results for frontend display
 
         Example:
-            User: "Make the breakup scene sadder"
-            line_text: "I can't do this anymore, she said."
-            emotions: ["sad", "soft tone", "sighing"]
-            explanation: "Regret and quiet resignation serve the moment better than anger."
+            User: "Remove the nervous tag from Miku's line"
+            diff_patch: '''@@ -1 +1 @@
+            -(nervous) (resigned) Miku: "Hello"
+            +(resigned) Miku: "Hello"
+            '''
+            explanation: "Remove nervous to simplify emotional state"
         """
         try:
-            logger.info(f"Suggesting emotion markup: {emotions} for '{line_text[:50]}...'")
+            logger.info("Parsing emotion markup diff...")
 
-            # Build proposed text with emotion tags
-            emotion_tags = []
-            tone_effects = []
+            # Parse unified diff to extract original and proposed text
+            try:
+                original_text, proposed_text = parse_unified_diff(diff_patch)
+            except ValueError as e:
+                logger.error(f"Invalid diff format: {e}")
+                return f"ERROR: {str(e)}"
 
-            for tag in emotions:
-                if tag in ["whispering", "soft tone", "shouting", "screaming", "in a hurry tone"]:
-                    tone_effects.append(tag)
-                elif tag in ["laughing", "sighing", "sobbing", "crying loudly", "gasping"]:
-                    tone_effects.append(tag)
-                else:
-                    emotion_tags.append(tag)
+            logger.info(f"Diff parsed - original: '{original_text[:50]}...', proposed: '{proposed_text[:50]}...'")
 
-            # Build proposed text
-            proposed_parts = []
-
-            # Add emotion tags at start
-            if emotion_tags:
-                for tag in emotion_tags:
-                    proposed_parts.append(f"({tag})")
-
-            # Add tone if at start
-            if tone_effects and not line_text.strip().startswith('"'):
-                proposed_parts.append(f"({tone_effects[0]})")
-                tone_effects = tone_effects[1:]
-
-            # Add the text
-            proposed_parts.append(line_text)
-
-            # Add remaining effects
-            if tone_effects:
-                proposed_text = " ".join(proposed_parts)
-                for effect in tone_effects:
-                    if " said" in proposed_text or " whispered" in proposed_text:
-                        proposed_text = proposed_text.replace(" said", f" ({effect}) said", 1)
-                        proposed_text = proposed_text.replace(" whispered", f" ({effect}) whispered", 1)
-                    else:
-                        proposed_text += f" ({effect})"
+            # Validate that original text exists in current story
+            if self._story_state and self._story_state.current_text:
+                if original_text not in self._story_state.current_text:
+                    logger.warning(f"Original text not found in story: '{original_text[:50]}...'")
+                    return (
+                        "ERROR: Original text not found in the current story. "
+                        "The text may have been edited. Please copy the exact text from the story."
+                    )
             else:
-                proposed_text = " ".join(proposed_parts)
+                logger.warning("No story state available - skipping original text validation")
 
-            # Validate the proposed markup
+            # Validate the proposed markup has valid Fish Audio tags
             validation = validate_emotion_markup(proposed_text)
 
             if not validation.is_valid:
                 logger.warning(f"Validation errors: {validation.errors}")
                 return f"ERROR: Invalid emotion markup. {'; '.join(validation.errors)}"
 
-            # Generate diff
+            # Generate diff for frontend display
             diff = generate_emotion_diff(
-                original_text=line_text,
+                original_text=original_text,
                 proposed_text=proposed_text,
                 explanation=explanation
             )
@@ -257,7 +254,7 @@ Phase 4A complete. All tools are active:
             if self._room and self._room.local_participant:
                 try:
                     import hashlib
-                    diff_id = hashlib.md5(f"{line_text}{proposed_text}".encode()).hexdigest()[:8]
+                    diff_id = hashlib.md5(f"{original_text}{proposed_text}".encode()).hexdigest()[:8]
 
                     diff_message = {
                         "type": "emotion_diff",
@@ -442,14 +439,14 @@ async def entrypoint(ctx: JobContext):
 
     # Set up data channel listener for real-time story updates
     @ctx.room.on("data_received")
-    def on_data_received(data: bytes, participant):
+    def on_data_received(data_packet: rtc.DataPacket):
         """Handle story text updates from frontend via data channel."""
         try:
-            message = json.loads(data.decode('utf-8'))
+            message = json.loads(data_packet.data.decode('utf-8'))
             if message.get('type') == 'story_update':
                 new_text = message.get('text', '')
                 story_state.current_text = new_text
-                logger.info(f"Story text updated via data channel ({len(new_text)} chars)")
+                logger.info(f"✅ Story text updated via data channel ({len(new_text)} chars)")
         except Exception as e:
             logger.error(f"Failed to parse data channel message: {e}")
 

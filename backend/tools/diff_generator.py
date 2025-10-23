@@ -114,6 +114,87 @@ def generate_emotion_diff(
     )
 
 
+def parse_unified_diff(diff_patch: str) -> tuple[str, str]:
+    """
+    Parse unified diff format to extract original and proposed text.
+
+    Supports both single-line and multi-line diffs.
+
+    Args:
+        diff_patch: Unified diff string (git-style format)
+
+    Returns:
+        Tuple of (original_text, proposed_text)
+
+    Raises:
+        ValueError: If diff format is invalid or missing original/proposed
+
+    Example:
+        >>> diff = '''@@ -1 +1 @@
+        ... -(nervous) Miku: "Hello"
+        ... +(calm) Miku: "Hello"
+        ... '''
+        >>> original, proposed = parse_unified_diff(diff)
+        >>> print(original)
+        (nervous) Miku: "Hello"
+        >>> print(proposed)
+        (calm) Miku: "Hello"
+
+    Multi-line example:
+        >>> diff = '''@@ -1,2 +1,2 @@
+        ... -Line 1 old
+        ... -Line 2 old
+        ... +Line 1 new
+        ... +Line 2 new
+        ... '''
+        >>> original, proposed = parse_unified_diff(diff)
+    """
+    import re
+
+    lines = diff_patch.strip().split('\n')
+
+    # Extract lines marked with - (original) and + (proposed)
+    original_lines = []
+    proposed_lines = []
+
+    for line in lines:
+        # Skip header lines (---, +++, @@)
+        if line.startswith('---') or line.startswith('+++') or line.startswith('@@'):
+            continue
+        # Extract original lines (start with -)
+        elif line.startswith('-'):
+            original_lines.append(line[1:])  # Remove '-' prefix
+        # Extract proposed lines (start with +)
+        elif line.startswith('+'):
+            proposed_lines.append(line[1:])  # Remove '+' prefix
+        # Context lines (no prefix) are ignored for our purposes
+
+    # Join multi-line content
+    original_text = '\n'.join(original_lines) if original_lines else ''
+    proposed_text = '\n'.join(proposed_lines) if proposed_lines else ''
+
+    # Validate we got both
+    if not original_text and not proposed_text:
+        raise ValueError(
+            "Invalid diff format: No original (-) or proposed (+) lines found. "
+            "Expected unified diff format with lines starting with - and +"
+        )
+
+    if not original_text:
+        raise ValueError(
+            "Invalid diff format: No original (-) lines found. "
+            "Diff must include original text to replace."
+        )
+
+    if not proposed_text:
+        raise ValueError(
+            "Invalid diff format: No proposed (+) lines found. "
+            "Diff must include proposed text."
+        )
+
+    return original_text, proposed_text
+
+
 def extract_added_tags(original: str, proposed: str) -> List[str]:
     """
     Extract emotion tags that were added to the text.
