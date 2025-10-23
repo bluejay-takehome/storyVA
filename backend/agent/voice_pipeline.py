@@ -43,9 +43,9 @@ async def create_agent_session(user_data: StoryState) -> AgentSession:
         ),
 
         # Large Language Model (GPT-5)
+        # Note: gpt-5 with reasoning_effort doesn't support custom temperature
         llm=openai.LLM(
             model="gpt-5",
-            temperature=0.7,
         ),
 
         # Text-to-Speech (Fish Audio with Lelouch voice)
