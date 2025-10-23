@@ -1866,5 +1866,354 @@ After comparing our implementation with official LiveKit examples (`livekit_exam
 
 ---
 
-**Document Status:** ✅ Updated - Phase 4A (Backend Modernization) COMPLETE
-**Last Updated:** October 22, 2025 (Completed Backend Modernization)
+## 15. Frontend Architecture Plan (Based on LiveKit Examples)
+
+### 15.1 Research Summary - LiveKit Official Examples
+
+After reviewing `livekit_examples/agent-starter-react/`, we identified the canonical patterns for LiveKit + React integration. Our frontend should follow these patterns closely.
+
+**Example Repository Structure:**
+```
+agent-starter-react/
+├── app/
+│   ├── api/
+│   │   └── connection-details/
+│   │       └── route.ts              # Token generation endpoint
+│   ├── page.tsx                      # Main app container
+│   └── layout.tsx
+├── components/
+│   └── app/
+│       ├── app.tsx                   # Top-level wrapper with SessionProvider
+│       ├── session-provider.tsx      # Room context + session state
+│       ├── view-controller.tsx       # Switch between Welcome/Session views
+│       ├── welcome-view.tsx          # Pre-call UI with start button
+│       ├── session-view.tsx          # During-call UI (transcript, controls)
+│       ├── chat-transcript.tsx       # Message display component
+│       └── theme-toggle.tsx          # Optional UI elements
+├── hooks/
+│   └── useRoom.ts                    # Connection logic, token fetching
+├── lib/
+│   └── types.ts                      # TypeScript interfaces
+└── app-config.ts                     # App configuration constants
+```
+
+### 15.2 Critical Patterns from Examples
+
+#### 15.2.1 Token Generation API (`connection-details/route.ts`)
+
+**Pattern:** POST endpoint that generates LiveKit room tokens with agent configuration.
+
+**Example Implementation:**
+```typescript
+// app/api/connection-details/route.ts
+export async function POST(req: Request) {
+  const body = await req.json();
+  const agentName = body?.room_config?.agents?.[0]?.agent_name;
+
+  // Generate unique room and participant IDs
+  const roomName = `voice_assistant_room_${Math.floor(Math.random() * 10_000)}`;
+  const participantIdentity = `voice_assistant_user_${Math.floor(Math.random() * 10_000)}`;
+
+  // Create token with agent configuration
+  const at = new AccessToken(API_KEY, API_SECRET, {
+    identity: participantIdentity,
+    name: 'user',
+    ttl: '15m',
+  });
+
+  at.addGrant({
+    room: roomName,
+    roomJoin: true,
+    canPublish: true,
+    canPublishData: true,
+    canSubscribe: true,
+  });
+
+  // Add agent to room configuration
+  if (agentName) {
+    at.roomConfig = new RoomConfiguration({
+      agents: [{ agentName }],
+    });
+  }
+
+  return NextResponse.json({
+    serverUrl: LIVEKIT_URL,
+    roomName,
+    participantToken: await at.toJwt(),
+    participantName: 'user',
+  });
+}
+```
+
+**Key Details:**
+- POST endpoint (not GET) - accepts agent configuration in body
+- Uses `livekit-server-sdk` for token generation
+- Returns `serverUrl`, `roomName`, `participantToken`, `participantName`
+- Room configuration includes agent name for auto-dispatch
+
+#### 15.2.2 Session Management (`session-provider.tsx`)
+
+**Pattern:** Context provider that wraps `RoomContext` and manages session lifecycle.
+
+**Example Implementation:**
+```typescript
+// components/app/session-provider.tsx
+const SessionContext = createContext<{
+  appConfig: AppConfig;
+  isSessionActive: boolean;
+  startSession: () => void;
+  endSession: () => void;
+}>({...});
+
+export const SessionProvider = ({ appConfig, children }) => {
+  const { room, isSessionActive, startSession, endSession } = useRoom(appConfig);
+
+  return (
+    <RoomContext.Provider value={room}>
+      <SessionContext.Provider value={{ appConfig, isSessionActive, startSession, endSession }}>
+        {children}
+      </SessionContext.Provider>
+    </RoomContext.Provider>
+  );
+};
+```
+
+**Key Details:**
+- Wraps LiveKit's `RoomContext.Provider`
+- Manages session state (`isSessionActive`)
+- Provides `startSession` and `endSession` callbacks
+- Single source of truth for room state
+
+#### 15.2.3 Room Connection Hook (`useRoom.ts`)
+
+**Pattern:** Custom hook that handles room lifecycle, token fetching, and connection.
+
+**Example Implementation:**
+```typescript
+// hooks/useRoom.ts
+export function useRoom(appConfig: AppConfig) {
+  const room = useMemo(() => new Room(), []);
+  const [isSessionActive, setIsSessionActive] = useState(false);
+
+  // Token fetching
+  const tokenSource = useMemo(
+    () => TokenSource.custom(async () => {
+      const res = await fetch('/api/connection-details', {
+        method: 'POST',
+        body: JSON.stringify({
+          room_config: appConfig.agentName
+            ? { agents: [{ agent_name: appConfig.agentName }] }
+            : undefined,
+        }),
+      });
+      return await res.json();
+    }),
+    [appConfig]
+  );
+
+  const startSession = useCallback(() => {
+    setIsSessionActive(true);
+
+    if (room.state === 'disconnected') {
+      Promise.all([
+        room.localParticipant.setMicrophoneEnabled(true),
+        tokenSource.fetch().then((details) =>
+          room.connect(details.serverUrl, details.participantToken)
+        ),
+      ]);
+    }
+  }, [room, tokenSource]);
+
+  const endSession = useCallback(() => {
+    setIsSessionActive(false);
+  }, []);
+
+  return { room, isSessionActive, startSession, endSession };
+}
+```
+
+**Key Details:**
+- Creates `Room` instance once with `useMemo`
+- Fetches token from `/api/connection-details`
+- Enables microphone before connecting
+- Uses `Promise.all()` for parallel operations
+- Manages session state locally
+
+#### 15.2.4 View Controller (`view-controller.tsx`)
+
+**Pattern:** Switches between WelcomeView (pre-call) and SessionView (during call) with animations.
+
+**Example Implementation:**
+```typescript
+// components/app/view-controller.tsx
+export function ViewController() {
+  const { isSessionActive, startSession } = useSession();
+
+  return (
+    <AnimatePresence mode="wait">
+      {!isSessionActive && (
+        <WelcomeView key="welcome" onStartCall={startSession} />
+      )}
+      {isSessionActive && (
+        <SessionView key="session" />
+      )}
+    </AnimatePresence>
+  );
+}
+```
+
+**Key Details:**
+- Uses `AnimatePresence` from `motion/react` for smooth transitions
+- Conditional rendering based on `isSessionActive`
+- Separates pre-call and during-call UIs
+
+#### 15.2.5 Audio Rendering
+
+**Pattern:** Use `RoomAudioRenderer` and `StartAudio` from `@livekit/components-react`.
+
+**Example Implementation:**
+```typescript
+// components/app/app.tsx
+export function App({ appConfig }: AppProps) {
+  return (
+    <SessionProvider appConfig={appConfig}>
+      <main>
+        <ViewController />
+      </main>
+      <StartAudio label="Start Audio" />  {/* Required for browser autoplay policies */}
+      <RoomAudioRenderer />              {/* Renders audio from room participants */}
+      <Toaster />
+    </SessionProvider>
+  );
+}
+```
+
+**Key Details:**
+- `RoomAudioRenderer` - plays audio from all remote participants (including agent)
+- `StartAudio` - handles browser autoplay restrictions
+- Must be inside `RoomContext.Provider`
+
+### 15.3 Our Frontend Implementation Plan
+
+Based on examples, here's our adapted architecture:
+
+```
+frontend/
+├── app/
+│   ├── api/
+│   │   └── livekit-token/           # Our token endpoint (rename from connection-details)
+│   │       └── route.ts             # Token generation with StoryVA agent name
+│   ├── page.tsx                     # Main app (SessionProvider + ViewController)
+│   └── layout.tsx                   # Root layout
+│
+├── components/
+│   ├── SessionProvider.tsx          # Room context + session state (from examples)
+│   ├── ViewController.tsx           # Switch between Welcome/Session views (from examples)
+│   ├── WelcomeView.tsx             # Pre-call: story editor + start button (custom)
+│   ├── SessionView.tsx             # During-call: transcript + controls + editor (custom)
+│   │
+│   ├── StoryEditor.tsx             # Editable textarea with localStorage (custom)
+│   ├── LiveTranscript.tsx          # Chat messages from user + agent (adapted from examples)
+│   ├── CallControls.tsx            # Start/end/mute buttons (custom)
+│   └── DiffViewer.tsx              # Emotion markup diffs (custom)
+│
+├── hooks/
+│   ├── useRoom.ts                  # Connection logic (from examples)
+│   └── useTranscript.ts            # Message handling (custom)
+│
+├── lib/
+│   ├── types.ts                    # TypeScript interfaces
+│   └── livekit.ts                  # LiveKit utilities
+│
+└── app-config.ts                   # App configuration
+```
+
+### 15.4 Key Differences from Examples
+
+**What We Keep from Examples:**
+1. ✅ Token generation API pattern
+2. ✅ SessionProvider structure
+3. ✅ useRoom hook logic
+4. ✅ ViewController pattern
+5. ✅ RoomAudioRenderer usage
+
+**What We Customize:**
+1. **WelcomeView:**
+   - Add StoryEditor for pasting text
+   - Show Lelouch intro/personality
+   - "Start Direction Session" button
+
+2. **SessionView:**
+   - Keep StoryEditor visible (editable during call)
+   - Add LiveTranscript (user + agent messages)
+   - Add DiffViewer for emotion markup suggestions
+   - Custom CallControls with "End Session" button
+
+3. **Agent Configuration:**
+   - Pass `agentName: "storyva-voice-director"` in token request
+   - This tells LiveKit to dispatch our Python agent
+
+### 15.5 Component Dependencies
+
+**Install (Already Have):**
+- ✅ `@livekit/components-react` - UI components
+- ✅ `livekit-client` - Room, Track APIs
+- ✅ `livekit-server-sdk` - Token generation
+
+**May Need:**
+- `motion` (or `framer-motion`) - for AnimatePresence (optional)
+- Local storage utilities (built-in)
+
+### 15.6 Implementation Order (Phase 5)
+
+**Phase 5A: Core Infrastructure** (4-6 hours)
+1. [ ] Create `app-config.ts` with StoryVA configuration
+2. [ ] Create `/api/livekit-token/route.ts` (token generation)
+3. [ ] Create `hooks/useRoom.ts` (connection logic)
+4. [ ] Create `components/SessionProvider.tsx` (room context)
+5. [ ] Create `components/ViewController.tsx` (view switching)
+6. [ ] Create basic `components/WelcomeView.tsx` (start button)
+7. [ ] Update `app/page.tsx` to use SessionProvider
+8. [ ] **Test:** Verify connection to LiveKit works
+
+**Phase 5B: UI Components** (6-8 hours)
+1. [ ] `components/StoryEditor.tsx` - Editable textarea with localStorage
+2. [ ] `components/LiveTranscript.tsx` - Display user + agent messages
+3. [ ] `components/CallControls.tsx` - Start/end/mute buttons
+4. [ ] `components/SessionView.tsx` - Layout for during-call UI
+5. [ ] `components/DiffViewer.tsx` - Emotion markup diffs (Phase 6)
+6. [ ] **Test:** Full user flow from start to end
+
+**Phase 5C: Integration & Polish** (4-6 hours)
+1. [ ] Add RoomAudioRenderer and StartAudio
+2. [ ] Wire up all components
+3. [ ] Style with Tailwind
+4. [ ] Test complete flow (paste story → start call → agent responds → see transcript)
+5. [ ] Bug fixes
+
+### 15.7 Testing Checklist
+
+**After Phase 5A:**
+- [ ] Can generate token from `/api/livekit-token`
+- [ ] Can connect to LiveKit room
+- [ ] Can see "Start Call" button
+- [ ] Button click connects to room
+- [ ] Agent joins room automatically
+
+**After Phase 5B:**
+- [ ] Story editor persists text in localStorage
+- [ ] Can see live transcript of user speech
+- [ ] Can see agent responses in transcript
+- [ ] Can hear agent audio through speakers
+- [ ] Can end call and return to welcome screen
+
+**After Phase 5C:**
+- [ ] Full user journey works smoothly
+- [ ] UI is styled and professional
+- [ ] No console errors
+- [ ] Agent personality comes through in responses
+
+---
+
+**Document Status:** ✅ Updated - Phase 4A complete, Phase 5 fully planned
+**Last Updated:** October 22, 2025 (Added comprehensive frontend research and plan)
