@@ -2,6 +2,11 @@
 
 A RAG-enabled voice agent that helps writers add professional Fish Audio emotion markup to their stories through natural conversation. The agent, "Lelouch," acts as a strategic voice director, teaching theatrical techniques from classic voice acting texts and applying them interactively.
 
+Lelouch is a character from the anime Code Geass known for his strategic thinking and dramatic flair. He once took control over the world to save it from itself.
+To save the world, he got the whole world to hate him instead of eachother, and then faked his death. By doing so, their hatred resolved.
+
+In this context, Lelouch went into hiding after faking his death and now teaches disciples the way of persuasion.
+
 **Built for:** Bluejay Take-Home Interview
 **Submission Date:** October 2025
 
