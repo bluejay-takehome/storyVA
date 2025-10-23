@@ -1,8 +1,8 @@
 # Technical Design Document: Voice Director Agent
 **Project:** StoryVA - Voice Acting Direction Agent
-**Version:** 1.3
-**Date:** October 22, 2025 (Updated after Phase 3 completion)
-**Status:** In Progress - Phase 3 Complete, Ready for Phase 4
+**Version:** 1.4
+**Date:** October 22, 2025 (Updated after Phase 5B completion)
+**Status:** In Progress - Phase 5 Partially Complete (Voice & Transcript Working)
 
 ---
 
@@ -1368,39 +1368,66 @@ stt=deepgram.STT(
 
 ---
 
-### 7.5 Phase 5: Frontend UI
+### 7.5 Phase 5: Frontend UI ✅ (Partially Complete)
 
 **Goal:** Complete user interface with all components
 
-**Tasks:**
-- [ ] Create `app/page.tsx` main UI
-- [ ] Implement `StoryEditor.tsx` component
-  - Editable textarea
-  - Word counter
-  - Save state to localStorage
-  - Inline diff mode
-  - Highlight emotion tags in green
-- [ ] Implement `CallControls.tsx` component
-  - Connect to LiveKit room
-  - Start/end call buttons
-  - Connection status indicator
-- [ ] Implement `LiveTranscript.tsx` component
-  - Display messages from LiveKit
-  - Auto-scroll
-  - User/agent differentiation
-  - Display tool calls
-- [ ] Connect frontend to LiveKit (obtain room tokens via API route)
+**Phase 5A Tasks (Basic UI & LiveKit Integration):**
+- [x] Create `app/page.tsx` main UI layout
+- [x] Implement `StoryEditor.tsx` component
+  - [x] Editable textarea
+  - [x] Word counter
+  - [x] Save state to localStorage
+  - [ ] Inline diff mode (pending backend integration)
+  - [ ] Highlight emotion tags in green
+- [x] Implement `CallControls.tsx` component
+  - [x] Connect to LiveKit room
+  - [x] Start/end call buttons
+  - [x] Connection status indicator
+- [x] Implement `LiveTranscript.tsx` component
+  - [x] Display messages from LiveKit (both user & agent)
+  - [x] Auto-scroll
+  - [x] User/agent differentiation
+  - [ ] Display tool calls (pending testing)
+- [x] Connect frontend to LiveKit (token generation via `/api/livekit-token`)
+- [x] LiveKit voice agent integration with `useVoiceAssistant` hook
 
-**Deliverable:** Functional UI for complete user journey
+**Phase 5B Tasks (Voice Pipeline & Fish Audio SDK):**
+- [x] Fix agent name registration (`agent_name="storyva-voice-director"`)
+- [x] Remove temperature parameter from GPT-5 (reasoning_effort doesn't support it)
+- [x] Refactor Fish Audio TTS to use official SDK
+  - [x] Replace manual WebSocket implementation
+  - [x] Integrate `fish-audio-sdk` package
+  - [x] Change format from `opus` to `mp3`
+  - [x] Test audio synthesis with SDK
+- [x] Update agent conversation instructions (distinguish conversation vs tool usage)
+- [x] Fix LiveTranscript to capture user speech transcriptions
+- [x] Verify audio playback working end-to-end
+
+**Deliverable:** ✅ Functional voice conversation with Lelouch, transcript visible
+
+**Status:** ✅ Voice and transcript working (October 22, 2025)
 
 **Implementation Notes:**
-- LiveKit token generation via `/api/livekit-token` route
-- localStorage persistence for story text
-- Ready for Phase 4 integration (diff acceptance, transcript from agent)
+- **Fish Audio SDK Integration:** Replaced manual WebSocket protocol with official `fish-audio-sdk`
+  - Fixed TTS failures caused by incorrect WebSocket message format
+  - SDK handles all protocol details (MessagePack, event handling, audio chunking)
+  - Changed from `opus` to `mp3` format (SDK supported formats: mp3, wav, pcm)
+- **Agent Instructions:** Updated system prompt to distinguish conversation vs tool usage
+  - Agent now responds conversationally to greetings
+  - Only uses tools when user explicitly shares story text or asks for techniques
+- **LiveTranscript Fix:** User implemented proper event listener for transcriptions
+  - Component now shows both user speech and agent responses in real-time
+
+**Remaining Issues:**
+- [ ] Story text in editor not visible to agent (need to send via data channel or room metadata)
+- [ ] Tool calls not yet tested in transcript
+- [ ] Diff editing workflow not yet implemented
+- [ ] RAG system not yet tested in live conversation
 
 ---
 
-### 7.6 Phase 6: Integration & Testing
+### 7.6 Phase 6: Integration & Testing (Next Steps)
 
 **Goal:** End-to-end system working smoothly
 
