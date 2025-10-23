@@ -50,9 +50,9 @@ class VoiceActingRetriever:
         pc = Pinecone(api_key=pinecone_api_key)
         pinecone_index = pc.Index(pinecone_index_name)
 
-        # Configure embeddings
+        # Configure embeddings (must match indexing model)
         embed_model = OpenAIEmbedding(
-            model="text-embedding-3-small",
+            model="text-embedding-3-large",
             api_key=openai_api_key,
         )
         Settings.embed_model = embed_model
