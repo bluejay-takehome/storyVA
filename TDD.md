@@ -2181,17 +2181,22 @@ frontend/
 - Transcript panel appears on right when session starts
 - Session controls (Start/End) integrated into main view
 
-**Phase 5B: UI Components** ✅ COMPLETE (October 23, 2025)
-1. [x] `components/StoryEditor.tsx` - Editable textarea with localStorage (completed in 5A)
+**Phase 5B: UI Components** ✅ COMPLETE (October 23, 2025 - Refactored)
+1. [x] `components/StoryEditor.tsx` - Editable textarea with localStorage + inline diff display
 2. [x] `components/LiveTranscript.tsx` - Display user + agent messages with useVoiceAssistant hook
-3. [x] `components/DiffViewer.tsx` - Emotion markup diffs with highlighted tags
+3. [x] `components/InlineDiff.tsx` - Emotion markup diffs shown inline above story editor
 4. [x] **Test:** All components render correctly, UI compiles without errors
 
 **Implementation Notes:**
 - LiveTranscript uses `useVoiceAssistant()` hook from LiveKit for agent state
-- DiffViewer highlights emotion tags in yellow, shows before/after comparison
-- Accept/Reject buttons in DiffViewer are placeholders for Phase 6
-- All components integrated into main page.tsx
+- **Inline Diff Design (Corrected from PRD):**
+  - InlineDiff component displays original (strikethrough) vs proposed text (with highlighted emotion tags)
+  - Diffs appear inline **above the StoryEditor textarea** when agent makes suggestions
+  - Accept button applies change to editor content
+  - Reject button dismisses the suggestion
+  - ~~DiffViewer.tsx~~ (deleted - was a design mistake, not matching PRD's inline diff requirement)
+- StoryEditor manages pending diffs array, displays them above the textarea
+- No external diff library needed (react-diff-viewer incompatible with React 19)
 - CallControls and SessionView removed - integrated into main page.tsx for simpler architecture
 
 **Phase 5C: Integration & Polish** (1-2 hours - ready for testing)
@@ -2210,10 +2215,10 @@ frontend/
 - [x] RoomAudioRenderer and StartAudio components present
 - [ ] Full connection test (pending - need backend running)
 
-**After Phase 5B:** ✅ PASSED (UI Components Complete)
+**After Phase 5B:** ✅ PASSED (UI Components Complete - Refactored to Inline Diff)
 - [x] Story editor persists text in localStorage (StoryEditor component)
 - [x] LiveTranscript component displays conversation
-- [x] DiffViewer component displays emotion markup suggestions
+- [x] InlineDiff component displays emotion markup suggestions above editor
 - [x] All components render without errors
 - [ ] Full integration test with live backend (Phase 5C)
 
@@ -2225,5 +2230,5 @@ frontend/
 
 ---
 
-**Document Status:** ✅ Updated - Phase 4A complete, Phase 5A complete, Phase 5B complete
-**Last Updated:** October 23, 2025 (Phase 5B complete - all UI components built and integrated)
+**Document Status:** ✅ Updated - Phase 4A complete, Phase 5A complete, Phase 5B complete (refactored to inline diff)
+**Last Updated:** October 23, 2025 (Phase 5B refactored - InlineDiff integrated into StoryEditor, DiffViewer removed)

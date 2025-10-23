@@ -2,12 +2,13 @@
  * StoryEditor Component
  *
  * Editable textarea for story content with localStorage persistence.
- * Allows writers to paste and edit their stories.
+ * Displays inline diffs when agent suggests emotion markup changes.
  */
 
 'use client';
 
 import { useEffect, useState } from 'react';
+import { InlineDiff } from './InlineDiff';
 
 const STORAGE_KEY = 'storyva-story-content';
 
@@ -15,16 +16,26 @@ interface StoryEditorProps {
   className?: string;
 }
 
+interface PendingDiff {
+  id: string;
+  original: string;
+  proposed: string;
+  explanation?: string;
+  lineNumber?: number;
+}
+
 /**
- * StoryEditor - textarea with automatic localStorage persistence.
+ * StoryEditor - textarea with automatic localStorage persistence and inline diff display.
  *
  * Features:
  * - Auto-saves to localStorage on every change
  * - Restores content on mount
- * - Placeholder text guides users
+ * - Displays inline diffs for agent suggestions
+ * - Accept/reject diffs to apply or dismiss changes
  */
 export function StoryEditor({ className = '' }: StoryEditorProps) {
   const [content, setContent] = useState('');
+  const [pendingDiffs, setPendingDiffs] = useState<PendingDiff[]>([]);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -41,6 +52,31 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     localStorage.setItem(STORAGE_KEY, newContent);
   };
 
+  // Accept a diff - replace original text with proposed text
+  const handleAcceptDiff = (diffId: string) => {
+    const diff = pendingDiffs.find(d => d.id === diffId);
+    if (!diff) return;
+
+    // Replace the original text with proposed text in content
+    const newContent = content.replace(diff.original, diff.proposed);
+    setContent(newContent);
+    localStorage.setItem(STORAGE_KEY, newContent);
+
+    // Remove the diff from pending list
+    setPendingDiffs(prev => prev.filter(d => d.id !== diffId));
+  };
+
+  // Reject a diff - just remove it from pending list
+  const handleRejectDiff = (diffId: string) => {
+    setPendingDiffs(prev => prev.filter(d => d.id !== diffId));
+  };
+
+  // TODO: This will be populated by agent suggestions in Phase 6
+  // For now, exposed for future integration
+  const addPendingDiff = (diff: PendingDiff) => {
+    setPendingDiffs(prev => [...prev, diff]);
+  };
+
   return (
     <div className={`flex flex-col h-full ${className}`}>
       <div className="mb-2 flex items-center justify-between">
@@ -52,8 +88,26 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
         </label>
         <span className="text-xs text-zinc-500 dark:text-zinc-400">
           {content.length} characters
+          {pendingDiffs.length > 0 && ` · ${pendingDiffs.length} suggestion${pendingDiffs.length > 1 ? 's' : ''}`}
         </span>
       </div>
+
+      {/* Pending diffs displayed above editor */}
+      {pendingDiffs.length > 0 && (
+        <div className="mb-4 space-y-3 max-h-64 overflow-y-auto">
+          {pendingDiffs.map(diff => (
+            <InlineDiff
+              key={diff.id}
+              original={diff.original}
+              proposed={diff.proposed}
+              explanation={diff.explanation}
+              onAccept={() => handleAcceptDiff(diff.id)}
+              onReject={() => handleRejectDiff(diff.id)}
+            />
+          ))}
+        </div>
+      )}
+
       <textarea
         id="story-editor"
         value={content}
