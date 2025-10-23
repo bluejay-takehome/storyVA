@@ -65,10 +65,11 @@ if __name__ == "__main__":
     if not verify_environment():
         exit(1)
 
-    # Start LiveKit agent worker
+    # Start LiveKit agent worker with agent name matching frontend configuration
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             prewarm_fnc=prewarm,
+            agent_name="storyva-voice-director",  # Must match agentName in frontend/app-config.ts
         )
     )
