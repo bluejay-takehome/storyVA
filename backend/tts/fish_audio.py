@@ -1,15 +1,13 @@
 """
 Custom Fish Audio TTS integration for LiveKit.
 
-Implements WebSocket streaming TTS with Fish Audio's API,
+Uses the official Fish Audio SDK for reliable streaming TTS,
 supporting 60+ emotion tags for voice direction.
 """
-import os
 import asyncio
 import logging
 from typing import Optional
-import ormsgpack
-import websockets
+from fish_audio_sdk import Session, TTSRequest
 from livekit.agents import tts, APIConnectOptions
 from livekit.agents.types import DEFAULT_API_CONNECT_OPTIONS
 
@@ -23,7 +21,7 @@ class FishAudioTTS(tts.TTS):
     """
     Custom TTS implementation for Fish Audio with LiveKit.
 
-    Supports WebSocket streaming for low-latency synthesis
+    Uses the official Fish Audio SDK for streaming synthesis
     with emotion markup tags.
     """
 
@@ -34,7 +32,7 @@ class FishAudioTTS(tts.TTS):
         reference_id: str,  # Voice model ID
         model: str = "speech-1.6",
         latency: str = "normal",
-        format: str = "opus",
+        format: str = "mp3",  # SDK supports: mp3, wav, pcm
     ):
         super().__init__(
             capabilities=tts.TTSCapabilities(streaming=False),  # Using ChunkedStream
@@ -47,9 +45,12 @@ class FishAudioTTS(tts.TTS):
         self._latency = latency
         self._format = format
 
+        # Initialize Fish Audio SDK session
+        self._session = Session(api_key)
+
         logger.info(
             f"Initialized FishAudioTTS (voice={reference_id[:8]}..., "
-            f"format={format}, latency={latency})"
+            f"model={model}, format={format}, latency={latency})"
         )
 
     @property
@@ -63,16 +64,16 @@ class FishAudioTTS(tts.TTS):
     def synthesize(
         self, text: str, *, conn_options: APIConnectOptions = DEFAULT_API_CONNECT_OPTIONS
     ) -> "ChunkedStream":
-        """Synthesize text using Fish Audio WebSocket API."""
+        """Synthesize text using Fish Audio SDK."""
         return ChunkedStream(tts=self, input_text=text, conn_options=conn_options)
 
 
 class ChunkedStream(tts.ChunkedStream):
     """
-    Streaming TTS using Fish Audio WebSocket API.
+    Streaming TTS using Fish Audio SDK.
 
-    Connects to wss://api.fish.audio/v1/tts/live
-    and streams audio chunks.
+    The SDK handles all WebSocket protocol details and returns
+    audio chunks that we push to LiveKit's audio emitter.
     """
 
     def __init__(self, *, tts: FishAudioTTS, input_text: str, conn_options: APIConnectOptions):
@@ -81,91 +82,60 @@ class ChunkedStream(tts.ChunkedStream):
 
     async def _run(self, output_emitter: tts.AudioEmitter) -> None:
         """
-        Main synthesis loop - connects to Fish Audio and streams audio.
+        Main synthesis loop - uses Fish Audio SDK to stream audio.
 
         Args:
             output_emitter: LiveKit's audio emitter for sending frames
         """
-        ws_uri = "wss://api.fish.audio/v1/tts/live"
-        headers = {"Authorization": f"Bearer {self._tts._api_key}"}
-
-        logger.debug(f"Connecting to Fish Audio: {ws_uri}")
-
         try:
-            async with websockets.connect(ws_uri, additional_headers=headers) as ws:
-                # Send initial configuration
-                config_msg = ormsgpack.packb({
-                    "event": "start",
-                    "request": {
-                        "text": self.input_text,  # Send all text at once
-                        "reference_id": self._tts._reference_id,
-                        "latency": self._tts._latency,
-                        "format": self._tts._format,
-                    },
-                })
-                await ws.send(config_msg)
-                logger.debug(f"Sent synthesis request for text: {self.input_text[:50]}...")
+            logger.info(f"Synthesizing with Fish Audio: {self.input_text[:50]}...")
 
-                # Initialize emitter
-                output_emitter.initialize(
-                    request_id="",  # Fish Audio doesn't provide request IDs
-                    sample_rate=SAMPLE_RATE,
-                    num_channels=NUM_CHANNELS,
-                    mime_type=f"audio/{self._tts._format}",
-                )
+            # Create TTS request
+            request = TTSRequest(
+                text=self.input_text,
+                reference_id=self._tts._reference_id,
+                format=self._tts._format,
+                latency=self._tts._latency,
+                chunk_length=200,  # Default from docs
+                normalize=True,  # Default from docs
+            )
 
-                # Receive audio frames with timeout for completion detection
-                # Fish Audio may not send explicit "finish" event - use timeout
-                receive_timeout = 5.0  # seconds to wait for next message
+            # Initialize emitter
+            output_emitter.initialize(
+                request_id="",  # Fish Audio SDK doesn't expose request IDs
+                sample_rate=SAMPLE_RATE,
+                num_channels=NUM_CHANNELS,
+                mime_type=f"audio/{self._tts._format}",
+            )
 
-                while True:
-                    try:
-                        # Wait for next message with timeout
-                        message = await asyncio.wait_for(ws.recv(), timeout=receive_timeout)
-                        data = ormsgpack.unpackb(message)
-                        event = data.get("event")
+            # The SDK's tts() method returns an iterator of audio chunks
+            # We need to run it in a thread pool since it's synchronous
+            loop = asyncio.get_event_loop()
 
-                        logger.debug(f"Received event: {event}")
+            def _generate_chunks():
+                """Synchronous generator wrapper for SDK."""
+                chunks = []
+                try:
+                    for chunk in self._tts._session.tts(request, backend=self._tts._model):
+                        chunks.append(chunk)
+                    logger.info(f"Fish Audio generated {len(chunks)} audio chunks")
+                    return chunks
+                except Exception as e:
+                    logger.error(f"Fish Audio SDK error: {e}", exc_info=True)
+                    raise
 
-                        if event == "audio":
-                            # Push audio data to emitter
-                            audio_bytes = data.get("audio")
-                            if audio_bytes:
-                                output_emitter.push(audio_bytes)
-                                logger.debug(f"Pushed {len(audio_bytes)} bytes of audio")
+            # Run synchronous SDK call in thread pool
+            chunks = await loop.run_in_executor(None, _generate_chunks)
 
-                        elif event == "finish":
-                            logger.debug("Fish Audio synthesis complete (finish event)")
-                            break
+            # Push all chunks to emitter
+            for chunk in chunks:
+                output_emitter.push(chunk)
+                logger.debug(f"Pushed {len(chunk)} bytes of audio")
 
-                        elif event == "done" or event == "end":
-                            logger.debug(f"Fish Audio synthesis complete ({event} event)")
-                            break
+            # Flush remaining audio
+            output_emitter.flush()
+            logger.info("Fish Audio synthesis complete")
 
-                        elif event == "error":
-                            error_msg = data.get("message", "Unknown error")
-                            logger.error(f"Fish Audio error: {error_msg}")
-                            raise Exception(f"Fish Audio API error: {error_msg}")
-
-                    except asyncio.TimeoutError:
-                        # No message received within timeout - assume synthesis complete
-                        logger.debug("No messages received for 5s, synthesis assumed complete")
-                        break
-
-                    except websockets.exceptions.ConnectionClosed:
-                        # WebSocket closed by server
-                        logger.debug("Fish Audio WebSocket closed by server")
-                        break
-
-                # Synthesis complete
-                logger.debug("Fish Audio synthesis complete")
-
-                # Flush remaining audio
-                output_emitter.flush()
-
-        except websockets.exceptions.WebSocketException as e:
-            logger.error(f"WebSocket error: {e}")
-            raise
         except Exception as e:
-            logger.error(f"Fish Audio synthesis error: {e}")
+            logger.error(f"Fish Audio synthesis error: {e}", exc_info=True)
             raise

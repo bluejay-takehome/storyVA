@@ -53,7 +53,7 @@ async def create_agent_session(user_data: StoryState) -> AgentSession:
             api_key=os.getenv("FISH_AUDIO_API_KEY"),
             reference_id=os.getenv("FISH_LELOUCH_VOICE_ID"),
             latency="normal",
-            format="opus",
+            format="mp3",  # SDK supports: mp3, wav, pcm
         ),
 
         # Turn Detection (auto-selected: will use vad → stt → manual fallback)
