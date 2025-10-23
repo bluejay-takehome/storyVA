@@ -8,7 +8,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useVoiceAssistant } from '@livekit/components-react';
+import { useVoiceAssistant, useLocalParticipant } from '@livekit/components-react';
+import { Track } from 'livekit-client';
 
 export interface TranscriptMessage {
   id: string;
@@ -37,6 +38,9 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
   // Use LiveKit's useVoiceAssistant hook to get agent state
   const { state, agentTranscriptions } = useVoiceAssistant();
 
+  // Get local participant to listen for user transcriptions
+  const { localParticipant } = useLocalParticipant();
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
@@ -46,12 +50,15 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
 
   // Listen for new transcriptions
   useEffect(() => {
+    console.log('Agent transcriptions:', agentTranscriptions);
+    
     if (agentTranscriptions && agentTranscriptions.length > 0) {
       // Get the latest transcription
       const latest = agentTranscriptions[agentTranscriptions.length - 1];
+      console.log('Latest agent transcription:', latest);
 
       // Add to messages if it's a final transcription and not already added
-      if (latest.isFinal) {
+      if (latest.isFinal && latest.text) {
         const messageId = `agent-${latest.timestamp || Date.now()}`;
 
         // Check if message already exists
@@ -59,6 +66,7 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
           const exists = prev.some(m => m.id === messageId);
           if (exists) return prev;
 
+          console.log('Adding agent message:', latest.text);
           return [
             ...prev,
             {
@@ -73,8 +81,76 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
     }
   }, [agentTranscriptions]);
 
-  // TODO: Listen for user transcriptions (when microphone is enabled)
-  // This will require listening to room track events
+  // Listen for user transcriptions from the local participant's microphone
+  useEffect(() => {
+    if (!localParticipant) return;
+
+    const handleTranscription = (transcription: any) => {
+      console.log('Transcription received:', transcription);
+      
+      // Handle different transcription data structures
+      let finalText = '';
+      let isFinal = false;
+      
+      if (typeof transcription === 'string') {
+        finalText = transcription.trim();
+        isFinal = true;
+      } else if (transcription.text) {
+        finalText = transcription.text.trim();
+        isFinal = transcription.isFinal || transcription.final || true;
+      } else if (Array.isArray(transcription)) {
+        // Handle array of segments
+        finalText = transcription
+          .filter((s) => s.final || s.isFinal)
+          .map((s) => s.text)
+          .join(' ')
+          .trim();
+        isFinal = true;
+      }
+      
+      if (finalText && isFinal) {
+        const messageId = `user-${Date.now()}`;
+
+        setMessages((prev) => {
+          // Avoid duplicate messages
+          const exists = prev.some(
+            (m) => m.role === 'user' && m.content === finalText
+          );
+          if (exists) return prev;
+
+          console.log('Adding user message:', finalText);
+          return [
+            ...prev,
+            {
+              id: messageId,
+              role: 'user',
+              content: finalText,
+              timestamp: new Date(),
+            },
+          ];
+        });
+      }
+    };
+
+    // Subscribe to transcription events - try multiple event names
+    localParticipant.on('transcriptionReceived', handleTranscription);
+    localParticipant.on('trackTranscriptionReceived', handleTranscription);
+    
+    // Also listen on the room for transcription events
+    const room = localParticipant.room;
+    if (room) {
+      room.on('transcriptionReceived', handleTranscription);
+    }
+
+    // Cleanup
+    return () => {
+      localParticipant.off('transcriptionReceived', handleTranscription);
+      localParticipant.off('trackTranscriptionReceived', handleTranscription);
+      if (room) {
+        room.off('transcriptionReceived', handleTranscription);
+      }
+    };
+  }, [localParticipant]);
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
