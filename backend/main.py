@@ -6,19 +6,41 @@ LiveKit agent that helps writers add Fish Audio emotion markup to stories.
 Agent personality: Lelouch - brilliant strategist turned voice director.
 """
 import os
+import sys
+
+# Filter warnings BEFORE any imports that might trigger them
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
+warnings.filterwarnings("ignore", module="pydantic")
+
 import logging
 from dotenv import load_dotenv
-from livekit.agents import cli, WorkerOptions
-from agent.lelouch import entrypoint, prewarm
 
 # Load environment variables
 load_dotenv()
 
-# Configure logging
+# Disable LiveKit's JSON logging - use plain text only
+os.environ["LIVEKIT_LOG_LEVEL"] = "WARN"
+
+# Configure logging BEFORE importing livekit
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    force=True
 )
+
+# Silence noisy loggers
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("openai._base_client").setLevel(logging.WARNING)
+logging.getLogger("asyncio").setLevel(logging.WARNING)
+logging.getLogger("livekit").setLevel(logging.ERROR)  # Only show errors, not warnings
+logging.getLogger("livekit.agents").setLevel(logging.ERROR)
+
+# NOW import livekit after logging is configured
+from livekit.agents import cli, WorkerOptions
+from agent.lelouch import entrypoint, prewarm
+
 logger = logging.getLogger("storyva")
 
 
@@ -64,6 +86,12 @@ if __name__ == "__main__":
     # Verify environment before starting
     if not verify_environment():
         exit(1)
+
+    # Remove LiveKit's JSON handler to prevent duplicate logs
+    root_logger = logging.getLogger()
+    # Keep only our BasicConfig handler (first one), remove others
+    if len(root_logger.handlers) > 1:
+        root_logger.handlers = root_logger.handlers[:1]
 
     # Start LiveKit agent worker with agent name matching frontend configuration
     cli.run_app(

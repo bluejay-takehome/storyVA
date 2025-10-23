@@ -88,7 +88,7 @@ class ChunkedStream(tts.ChunkedStream):
             output_emitter: LiveKit's audio emitter for sending frames
         """
         try:
-            logger.info(f"Synthesizing with Fish Audio: {self.input_text[:50]}...")
+            logger.info(f"Synthesizing with Fish Audio: {self.input_text}")
 
             # Create TTS request
             request = TTSRequest(
@@ -130,7 +130,6 @@ class ChunkedStream(tts.ChunkedStream):
             # Push all chunks to emitter
             for chunk in chunks:
                 output_emitter.push(chunk)
-                logger.debug(f"Pushed {len(chunk)} bytes of audio")
 
             # Flush remaining audio
             output_emitter.flush()
