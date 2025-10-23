@@ -4,13 +4,17 @@ Voice pipeline configuration for LiveKit agent.
 Sets up the STT → LLM → TTS → VAD pipeline for real-time conversation.
 """
 import os
+from typing import Optional, Callable, Awaitable
 from livekit.agents import AgentSession
 from livekit.plugins import deepgram, openai, silero
 from agent.state import StoryState
 from tts.fish_audio import FishAudioTTS
 
 
-async def create_agent_session(user_data: StoryState) -> AgentSession:
+async def create_agent_session(
+    user_data: StoryState,
+    on_text_synthesizing: Optional[Callable[[str], Awaitable[None]]] = None
+) -> AgentSession:
     """
     Create LiveKit agent session with configured voice pipeline.
 
@@ -23,6 +27,7 @@ async def create_agent_session(user_data: StoryState) -> AgentSession:
 
     Args:
         user_data: StoryState instance tracking story text and edits
+        on_text_synthesizing: Optional callback called when TTS starts synthesizing text
 
     Returns:
         Configured AgentSession ready for LiveKit room connection
@@ -54,6 +59,7 @@ async def create_agent_session(user_data: StoryState) -> AgentSession:
             reference_id=os.getenv("FISH_LELOUCH_VOICE_ID"),
             latency="normal",
             format="mp3",  # SDK supports: mp3, wav, pcm
+            on_text_synthesizing=on_text_synthesizing,  # Forward callback to TTS
         ),
 
         # Turn Detection (auto-selected: will use vad → stt → manual fallback)

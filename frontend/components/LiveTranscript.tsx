@@ -8,7 +8,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useVoiceAssistant, useLocalParticipant } from '@livekit/components-react';
+import { useVoiceAssistant, useLocalParticipant, useRoomContext } from '@livekit/components-react';
 import { Track } from 'livekit-client';
 
 export interface TranscriptMessage {
@@ -41,6 +41,9 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
   // Get local participant to listen for user transcriptions
   const { localParticipant } = useLocalParticipant();
 
+  // Get room for data channel access
+  const room = useRoomContext();
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     if (scrollRef.current) {
@@ -48,38 +51,51 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
     }
   }, [messages]);
 
-  // Listen for new transcriptions
+  // Listen for agent responses via data channel (immediate text, not waiting for TTS)
   useEffect(() => {
-    console.log('Agent transcriptions:', agentTranscriptions);
-    
-    if (agentTranscriptions && agentTranscriptions.length > 0) {
-      // Get the latest transcription
-      const latest = agentTranscriptions[agentTranscriptions.length - 1];
-      console.log('Latest agent transcription:', latest);
+    if (!room) return;
 
-      // Add to messages if it's a final transcription and not already added
-      if ((latest.isFinal || latest.final) && latest.text) {
-        const messageId = `agent-${latest.timestamp || Date.now()}`;
+    const handleDataReceived = (payload: Uint8Array, participant?: any) => {
+      try {
+        const decoder = new TextDecoder();
+        const message = JSON.parse(decoder.decode(payload));
 
-        // Check if message already exists
-        setMessages((prev) => {
-          const exists = prev.some(m => m.id === messageId);
-          if (exists) return prev;
+        // Handle agent text responses sent immediately (before TTS completes)
+        if (message.type === 'agent_response' && message.text) {
+          const messageId = message.timestamp || `agent-${Date.now()}`;
 
-          console.log('Adding agent message:', latest.text);
-          return [
-            ...prev,
-            {
-              id: messageId,
-              role: 'agent',
-              content: latest.text,
-              timestamp: new Date(),
-            },
-          ];
-        });
+          setMessages((prev) => {
+            // Check if message already exists
+            const exists = prev.some(m => m.id === messageId);
+            if (exists) return prev;
+
+            console.log('Adding agent message (immediate):', message.text);
+            return [
+              ...prev,
+              {
+                id: messageId,
+                role: 'agent',
+                content: message.text,
+                timestamp: new Date(),
+              },
+            ];
+          });
+        }
+      } catch (error) {
+        console.error('Failed to parse data channel message:', error);
       }
-    }
-  }, [agentTranscriptions]);
+    };
+
+    room.on('dataReceived', handleDataReceived);
+
+    return () => {
+      room.off('dataReceived', handleDataReceived);
+    };
+  }, [room]);
+
+  // NOTE: Agent transcriptions now come via data channel (from TTS callback)
+  // This provides immediate text display before audio completes
+  // The agentTranscriptions from useVoiceAssistant are no longer used
 
   // Listen for user transcriptions from the local participant's microphone
   useEffect(() => {

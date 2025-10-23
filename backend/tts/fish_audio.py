@@ -6,7 +6,7 @@ supporting 60+ emotion tags for voice direction.
 """
 import asyncio
 import logging
-from typing import Optional
+from typing import Optional, Callable, Awaitable
 from fish_audio_sdk import Session, TTSRequest
 from livekit.agents import tts, APIConnectOptions
 from livekit.agents.types import DEFAULT_API_CONNECT_OPTIONS
@@ -33,6 +33,7 @@ class FishAudioTTS(tts.TTS):
         model: str = "s1",  # Latest Fish Audio model
         latency: str = "normal",
         format: str = "mp3",  # SDK supports: mp3, wav, pcm
+        on_text_synthesizing: Optional[Callable[[str], Awaitable[None]]] = None,  # Callback when synthesis starts
     ):
         super().__init__(
             capabilities=tts.TTSCapabilities(streaming=False),  # Using ChunkedStream
@@ -44,6 +45,7 @@ class FishAudioTTS(tts.TTS):
         self._model = model
         self._latency = latency
         self._format = format
+        self._on_text_synthesizing = on_text_synthesizing
 
         # Initialize Fish Audio SDK session
         self._session = Session(api_key)
@@ -128,8 +130,17 @@ class ChunkedStream(tts.ChunkedStream):
             chunks = await loop.run_in_executor(None, _generate_chunks)
 
             # Push all chunks to emitter
-            for chunk in chunks:
+            text_sent = False
+            for i, chunk in enumerate(chunks):
                 output_emitter.push(chunk)
+
+                # Send text to frontend after first audio chunk is pushed (audio is playing now)
+                if i == 0 and not text_sent and self._tts._on_text_synthesizing:
+                    text_sent = True
+                    try:
+                        await self._tts._on_text_synthesizing(self.input_text)
+                    except Exception as e:
+                        logger.error(f"Error in on_text_synthesizing callback: {e}")
 
             # Flush remaining audio
             output_emitter.flush()

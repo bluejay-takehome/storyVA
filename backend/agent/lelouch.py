@@ -8,6 +8,7 @@ import os
 import json
 import logging
 from livekit.agents import Agent, JobContext, JobProcess, function_tool, RunContext
+from livekit.agents import UserInputTranscribedEvent
 from livekit.agents.llm import ChatContext, ChatMessage
 from livekit import rtc
 from agent.state import StoryState
@@ -513,9 +514,30 @@ async def entrypoint(ctx: JobContext):
         )
         logger.info("Added initial story to chat context")
 
+    # Create callback to send text to frontend when audio starts playing
+    async def on_text_synthesizing(text: str):
+        """Send agent text to frontend when audio starts playing (synchronized with speech)."""
+        try:
+            if ctx.room and ctx.room.local_participant:
+                data = json.dumps({
+                    'type': 'agent_response',
+                    'text': text,
+                    'timestamp': None,
+                }).encode('utf-8')
+                await ctx.room.local_participant.publish_data(data, reliable=True)
+                logger.debug(f"📤 Sent text to frontend (audio playing): {text[:50]}...")
+        except Exception as e:
+            logger.error(f"Failed to send text to frontend: {e}")
+
     # Create agent session with voice pipeline
-    session = await create_agent_session(story_state)
+    session = await create_agent_session(story_state, on_text_synthesizing=on_text_synthesizing)
     logger.info("Created agent session with voice pipeline")
+
+    # Register event handlers
+    @session.on("user_input_transcribed")
+    def on_user_transcribed(event: UserInputTranscribedEvent):
+        """Log user speech transcriptions."""
+        logger.info(f"👤 User: {event.transcript}")
 
     # Start the session with LelouchAgent (tools auto-register from Agent class)
     await session.start(agent=LelouchAgent(chat_ctx=initial_ctx, story_state=story_state, room=ctx.room), room=ctx.room)
