@@ -73,7 +73,7 @@ function MainView() {
 
       {/* Right panel - Transcript (appears during session) */}
       {isSessionActive && (
-        <div className="w-96 border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 flex flex-col">
+        <div className="w-96 h-screen border-l border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-950 p-6 flex flex-col">
           <LiveTranscript className="flex-1" />
         </div>
       )}

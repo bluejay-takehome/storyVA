@@ -170,7 +170,7 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto space-y-4 pr-2"
+        className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2"
       >
         {messages.length === 0 ? (
           <div className="text-center text-zinc-500 dark:text-zinc-400 text-sm mt-8">
