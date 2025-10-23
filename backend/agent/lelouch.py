@@ -77,16 +77,114 @@ EMOTION MARKUP RULES (Fish Audio):
 - Emotion tags MUST be at sentence start: (sad) "text"
 - Tone markers can go anywhere: "text (whispering) more"
 - Audio effects can go anywhere: "text," (sighing) she said.
-- Combine up to 3 tags maximum
+- Maximum 3 tags per sentence recommended (avoid overtagging)
+- Match emotions to context logically (serve narrative purpose)
+- Use restraint - don't melodramatize
 
-VALID EMOTION TAGS (use ONLY these):
-Basic: happy, sad, angry, excited, calm, nervous, confident, surprised, satisfied, delighted, scared, worried, upset, frustrated, depressed, empathetic, embarrassed, disgusted, moved, proud, relaxed, grateful, curious, sarcastic
+VALID EMOTION TAGS WITH CONTEXTS:
 
-Advanced: disdainful, unhappy, anxious, hysterical, indifferent, uncertain, doubtful, confused, disappointed, regretful, guilty, ashamed, jealous, envious, hopeful, optimistic, pessimistic, nostalgic, lonely, bored, contemptuous, sympathetic, compassionate, determined, resigned
+Basic Emotions:
+- `(happy)` cheerful, upbeat | good news, greetings
+- `(sad)` melancholic, downcast | sympathy, bad news
+- `(angry)` frustrated, aggressive | complaints, warnings
+- `(excited)` energetic, enthusiastic | announcements, celebrations
+- `(calm)` peaceful, relaxed | instructions, comfort
+- `(nervous)` anxious, uncertain | disclaimers, apologies
+- `(confident)` assertive, self-assured | presentations, assertions
+- `(surprised)` shocked, amazed | reactions, discoveries
+- `(satisfied)` content, pleased | confirmations, contentment
+- `(delighted)` very pleased, joyful | celebrations, compliments
+- `(scared)` frightened, fearful | warnings, fear
+- `(worried)` concerned, troubled | concerns, questions
+- `(upset)` disturbed, distressed | complaints, problems
+- `(frustrated)` annoyed, exasperated | delays, technical issues
+- `(depressed)` very sad, hopeless | serious topics
+- `(empathetic)` understanding, caring | support, counseling
+- `(embarrassed)` ashamed, awkward | apologies, mistakes
+- `(disgusted)` repelled, revolted | negative reactions
+- `(moved)` emotionally touched | heartfelt moments
+- `(proud)` accomplished, satisfied | achievements, praise
+- `(relaxed)` at ease, casual | casual conversation
+- `(grateful)` thankful, appreciative | thanks, appreciation
+- `(curious)` inquisitive, interested | questions, exploration
+- `(sarcastic)` ironic, mocking | humor, criticism
 
-Tone markers: whispering, soft tone, shouting, screaming, in a hurry tone
+Advanced Emotions:
+- `(disdainful)` contemptuous, scornful | criticism, rejection
+- `(unhappy)` discontent, dissatisfied | complaints, feedback
+- `(anxious)` very worried, uneasy | urgent matters
+- `(hysterical)` uncontrollably emotional | extreme reactions
+- `(indifferent)` uncaring, neutral | neutral responses
+- `(uncertain)` doubtful, unsure | speculation, questions
+- `(doubtful)` skeptical, questioning | disbelief
+- `(confused)` puzzled, perplexed | clarification requests
+- `(disappointed)` let down, dissatisfied | unmet expectations
+- `(regretful)` sorry, remorseful | apologies, mistakes
+- `(guilty)` culpable, responsible | confessions, apologies
+- `(ashamed)` deeply embarrassed | serious mistakes
+- `(jealous)` envious, resentful | comparisons
+- `(envious)` wanting what others have | admiration with desire
+- `(hopeful)` optimistic about future | future plans
+- `(optimistic)` positive outlook | encouragement
+- `(pessimistic)` negative outlook | warnings, doubts
+- `(nostalgic)` longing for the past | memories, stories
+- `(lonely)` isolated, alone | emotional content
+- `(bored)` uninterested, weary | disinterest
+- `(contemptuous)` showing contempt | strong criticism
+- `(sympathetic)` showing sympathy | condolences
+- `(compassionate)` showing deep care | support, help
+- `(determined)` resolved, decided | goals, commitments
+- `(resigned)` accepting defeat | giving up, acceptance
 
-Audio effects: laughing, chuckling, sighing, sobbing, crying loudly, groaning, panting, gasping, yawning, snoring
+Tone Markers:
+- `(whispering)` very soft, secretive | secrets, quiet scenes
+- `(soft tone)` gentle, quiet | comfort, lullabies
+- `(shouting)` loud, calling out | getting attention
+- `(screaming)` very loud, panicked | emergencies, fear
+- `(in a hurry tone)` rushed, urgent | time-sensitive
+
+Audio Effects:
+- `(laughing)` full laughter | Ha, ha, ha
+- `(chuckling)` light laugh | Heh, heh
+- `(sighing)` exhale of relief/frustration | sigh
+- `(sobbing)` crying heavily | emotional breakdown
+- `(crying loudly)` intense crying | intense grief
+- `(groaning)` sound of frustration | ugh
+- `(panting)` out of breath | huff, puff
+- `(gasping)` sharp intake of breath | gasp
+- `(yawning)` tired sound | yawn
+- `(snoring)` sleep sound | zzz
+
+EMOTION INTENSITY SCALE (use appropriate intensity):
+- Joy: satisfied → happy → delighted → ecstatic
+- Sadness: disappointed → sad → depressed
+- Anger: frustrated → angry → furious
+- Fear: nervous → scared → terrified
+- Excitement: interested → excited → ecstatic
+
+COMMON EFFECTIVE COMBINATIONS:
+- Whispered secret: `(nervous)` `(whispering)` or `(curious)` `(whispering)`
+- Angry shout: `(angry)` `(shouting)`
+- Sad sigh: `(sad)` `(sighing)`
+- Excited laugh: `(excited)` `(laughing)`
+- Nervous question: `(nervous)` `(uncertain)`
+- Controlled menace: `(calm)` `(determined)` `(soft tone)`
+- Brittle deflection: `(nervous)` `(soft tone)` `(chuckling)`
+- Restrained grief: `(sad)` `(calm)` - fighting for control
+- Desperate plea: `(anxious)` `(soft tone)` `(sobbing)`
+
+INTENSITY MODIFIERS (optional):
+- Can describe intensity: "slightly sad", "very excited", "extremely angry"
+- Use sparingly - tags themselves carry intensity
+
+BEST PRACTICES:
+- One primary emotion per sentence
+- Layer undertones with 2nd/3rd tag for complexity
+- Don't mix conflicting emotions randomly
+- Space out emotional changes for realism
+- Add text after audio effects (e.g., "Ha ha" after laughing)
+- Match emotion to character perspective and context
+- Use restraint for impact (less often = more powerful)
 
 CRITICAL: Only use tags from the list above. Invalid tags will be rejected.
 
