@@ -151,7 +151,7 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
     // Subscribe to transcription events - try multiple event names
     localParticipant.on('transcriptionReceived', handleTranscription);
     localParticipant.on('trackTranscriptionReceived', handleTranscription);
-    
+
     // Also listen on the room for transcription events
     const room = localParticipant.room;
     if (room) {
@@ -186,48 +186,50 @@ export function LiveTranscript({ className = '' }: LiveTranscriptProps) {
       {/* Messages */}
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-auto space-y-4 pr-2"
+        className="flex-1 min-h-0 overflow-y-auto pr-2"
       >
-        {messages.length === 0 ? (
-          <div className="text-center text-zinc-500 dark:text-zinc-400 text-sm mt-8">
-            <p className="mb-2">No messages yet</p>
-            <p className="text-xs">
-              Start speaking to begin the conversation
-            </p>
-          </div>
-        ) : (
-          messages.map((message) => (
-            <div
-              key={message.id}
-              className={`flex ${
-                message.role === 'user' ? 'justify-end' : 'justify-start'
-              }`}
-            >
+        <div className="space-y-4 pb-16">
+          {messages.length === 0 ? (
+            <div className="text-center text-zinc-500 dark:text-zinc-400 text-sm mt-8">
+              <p className="mb-2">No messages yet</p>
+              <p className="text-xs">
+                Start speaking to begin the conversation
+              </p>
+            </div>
+          ) : (
+            messages.map((message) => (
               <div
-                className={`max-w-[80%] rounded-lg px-4 py-2 ${
-                  message.role === 'user'
-                    ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
-                    : 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                key={message.id}
+                className={`flex ${
+                  message.role === 'user' ? 'justify-end' : 'justify-start'
                 }`}
               >
-                <div className="flex items-baseline gap-2 mb-1">
-                  <span className="text-xs font-semibold opacity-75">
-                    {message.role === 'user' ? 'You' : 'Lelouch'}
-                  </span>
-                  <span className="text-xs opacity-50">
-                    {message.timestamp.toLocaleTimeString([], {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
+                <div
+                  className={`max-w-[80%] rounded-lg px-4 py-2 ${
+                    message.role === 'user'
+                      ? 'bg-zinc-200 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100'
+                      : 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900'
+                  }`}
+                >
+                  <div className="flex items-baseline gap-2 mb-1">
+                    <span className="text-xs font-semibold opacity-75">
+                      {message.role === 'user' ? 'You' : 'Lelouch'}
+                    </span>
+                    <span className="text-xs opacity-50">
+                      {message.timestamp.toLocaleTimeString([], {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                    {message.content}
+                  </p>
                 </div>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {message.content}
-                </p>
               </div>
-            </div>
-          ))
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

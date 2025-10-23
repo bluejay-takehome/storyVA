@@ -153,21 +153,25 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
         {before}
         {changes.map((change, index) => {
           if (change.added) {
-            // Added text - green highlight
+            // Added text - vibrant green highlight with animation
             return (
               <span
                 key={index}
-                className="bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200"
+                className="bg-gradient-to-r from-green-200 to-emerald-200 dark:from-green-900/50 dark:to-emerald-900/50 text-green-900 dark:text-green-200 font-semibold px-1 rounded shadow-sm animate-pulse"
+                style={{
+                  animationDelay: `${index * 0.1}s`,
+                  animationIterationCount: '3',
+                }}
               >
                 {change.value}
               </span>
             );
           } else if (change.removed) {
-            // Removed text - red strikethrough
+            // Removed text - red strikethrough with fade
             return (
               <span
                 key={index}
-                className="bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200 line-through"
+                className="bg-gradient-to-r from-red-200 to-rose-200 dark:from-red-900/50 dark:to-rose-900/50 text-red-900 dark:text-red-200 line-through opacity-75 px-1 rounded"
               >
                 {change.value}
               </span>
@@ -184,46 +188,57 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      <div className="mb-2 flex items-center justify-between">
+      <div className="mb-3 flex items-center justify-between">
         <label
           htmlFor="story-editor"
-          className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+          className="text-base font-bold text-purple-900 dark:text-purple-300 flex items-center gap-2"
         >
+          <span className="text-xl">📖</span>
           Your Story
         </label>
-        <span className="text-xs text-zinc-500 dark:text-zinc-400">
+        <span className="text-xs font-medium px-3 py-1 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
           {content.length} characters
           {pendingDiffs.length > 0 && ` · ${pendingDiffs.length} suggestion${pendingDiffs.length > 1 ? 's' : ''}`}
         </span>
       </div>
 
-      {/* Accept/Reject buttons for pending diff */}
-      {pendingDiffs.length > 0 && (
-        <div className="mb-2 flex items-center gap-2">
-          <button
-            onClick={() => handleAcceptDiff(pendingDiffs[0].id)}
-            className="px-3 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
-          >
-            ✓ Accept
-          </button>
-          <button
-            onClick={() => handleRejectDiff(pendingDiffs[0].id)}
-            className="px-3 py-1 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
-          >
-            ✗ Reject
-          </button>
-          {pendingDiffs[0].summary && (
-            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-              {pendingDiffs[0].summary}
-            </span>
-          )}
-        </div>
-      )}
+      {/* Accept/Reject buttons with smooth collapse */}
+      <div
+        className="overflow-hidden transition-all duration-300 ease-in-out mb-3"
+        style={{
+          maxHeight: pendingDiffs.length > 0 ? '200px' : '0px',
+          marginBottom: pendingDiffs.length > 0 ? '0.75rem' : '0px'
+        }}
+      >
+        {pendingDiffs.length > 0 && (
+          <div className="p-4 glass rounded-xl border-2 border-purple-500/30">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleAcceptDiff(pendingDiffs[0].id)}
+                className="px-3 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+              >
+                ✓ Accept
+              </button>
+              <button
+                onClick={() => handleRejectDiff(pendingDiffs[0].id)}
+                className="px-3 py-1 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+              >
+                ✗ Reject
+              </button>
+              {pendingDiffs[0].summary && (
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  {pendingDiffs[0].summary}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Editor with inline diff highlighting */}
       {pendingDiffs.length > 0 ? (
         <div
-          className="flex-1 w-full p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-mono text-sm whitespace-pre-wrap overflow-auto"
+          className="flex-1 w-full p-5 border-2 border-purple-500/30 rounded-xl glass text-zinc-900 dark:text-zinc-100 font-mono text-sm leading-relaxed whitespace-pre-wrap overflow-auto shadow-xl"
         >
           {renderContentWithDiff()}
         </div>
@@ -239,7 +254,7 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
 He looked away, guilt washing over him. &quot;I had no choice.&quot;
 
 Add emotion markup with Lelouch's help during your session."
-          className="flex-1 w-full p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 dark:focus:ring-zinc-400 resize-none font-mono text-sm"
+          className="flex-1 w-full p-5 border-2 border-purple-500/20 hover:border-purple-500/40 rounded-xl glass text-zinc-900 dark:text-zinc-100 placeholder-purple-400/60 dark:placeholder-purple-400/40 focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/20 resize-none font-mono text-sm leading-relaxed transition-all duration-300 shadow-lg"
         />
       )}
     </div>
