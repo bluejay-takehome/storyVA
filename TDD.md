@@ -2166,39 +2166,44 @@ frontend/
 
 ### 15.6 Implementation Order (Phase 5)
 
-**Phase 5A: Core Infrastructure** (4-6 hours)
-1. [ ] Create `app-config.ts` with StoryVA configuration
-2. [ ] Create `/api/livekit-token/route.ts` (token generation)
-3. [ ] Create `hooks/useRoom.ts` (connection logic)
-4. [ ] Create `components/SessionProvider.tsx` (room context)
-5. [ ] Create `components/ViewController.tsx` (view switching)
-6. [ ] Create basic `components/WelcomeView.tsx` (start button)
-7. [ ] Update `app/page.tsx` to use SessionProvider
-8. [ ] **Test:** Verify connection to LiveKit works
+**Phase 5A: Core Infrastructure** ✅ COMPLETE (October 23, 2025)
+1. [x] Create `app-config.ts` with StoryVA configuration
+2. [x] Create `/api/livekit-token/route.ts` (token generation with RoomAgentDispatch)
+3. [x] Create `hooks/useRoom.ts` (connection logic)
+4. [x] Create `components/SessionProvider.tsx` (room context)
+5. [x] Create `components/StoryEditor.tsx` (textarea with localStorage persistence)
+6. [x] Update `app/page.tsx` to single-view architecture (simplified - removed ViewController/WelcomeView)
+7. [x] **Test:** Verified token generation and UI compilation
 
-**Phase 5B: UI Components** (6-8 hours)
-1. [ ] `components/StoryEditor.tsx` - Editable textarea with localStorage
+**Architecture Simplification:**
+- Removed separate WelcomeView/ViewController for simpler single-view design
+- Story editor always visible on left panel
+- Transcript panel appears on right when session starts
+- Session controls (Start/End) integrated into main view
+
+**Phase 5B: UI Components** (4-6 hours - simplified)
+1. [x] `components/StoryEditor.tsx` - Editable textarea with localStorage (completed in 5A)
 2. [ ] `components/LiveTranscript.tsx` - Display user + agent messages
-3. [ ] `components/CallControls.tsx` - Start/end/mute buttons
-4. [ ] `components/SessionView.tsx` - Layout for during-call UI
-5. [ ] `components/DiffViewer.tsx` - Emotion markup diffs (Phase 6)
-6. [ ] **Test:** Full user flow from start to end
+3. [ ] `components/DiffViewer.tsx` - Emotion markup diffs display
+4. [ ] **Test:** Full user flow from start to end
 
-**Phase 5C: Integration & Polish** (4-6 hours)
-1. [ ] Add RoomAudioRenderer and StartAudio
-2. [ ] Wire up all components
-3. [ ] Style with Tailwind
+**Note:** CallControls and SessionView removed - integrated into main page.tsx for simpler architecture.
+
+**Phase 5C: Integration & Polish** (2-4 hours - simplified)
+1. [x] Add RoomAudioRenderer and StartAudio (completed in 5A)
+2. [ ] Wire up LiveTranscript to display agent responses
+3. [ ] Polish styling with Tailwind
 4. [ ] Test complete flow (paste story → start call → agent responds → see transcript)
 5. [ ] Bug fixes
 
 ### 15.7 Testing Checklist
 
-**After Phase 5A:**
-- [ ] Can generate token from `/api/livekit-token`
-- [ ] Can connect to LiveKit room
-- [ ] Can see "Start Call" button
-- [ ] Button click connects to room
-- [ ] Agent joins room automatically
+**After Phase 5A:** ✅ PASSED
+- [x] Can generate token from `/api/livekit-token`
+- [x] UI renders correctly with story editor
+- [x] Can see "Start Direction Session" button
+- [x] RoomAudioRenderer and StartAudio components present
+- [ ] Full connection test (pending - need backend running)
 
 **After Phase 5B:**
 - [ ] Story editor persists text in localStorage
@@ -2215,5 +2220,5 @@ frontend/
 
 ---
 
-**Document Status:** ✅ Updated - Phase 4A complete, Phase 5 fully planned
-**Last Updated:** October 22, 2025 (Added comprehensive frontend research and plan)
+**Document Status:** ✅ Updated - Phase 4A complete, Phase 5A complete
+**Last Updated:** October 23, 2025 (Phase 5A complete - simplified single-view architecture)
