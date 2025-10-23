@@ -32,9 +32,11 @@ class LelouchAgent(Agent):
     professional emotion markup to their stories using Fish Audio's TTS system.
     """
 
-    def __init__(self, chat_ctx: ChatContext | None = None, story_state: StoryState | None = None) -> None:
+    def __init__(self, chat_ctx: ChatContext | None = None, story_state: StoryState | None = None, room=None) -> None:
         # Store reference to story state for accessing current story text
         self._story_state = story_state
+        # Store reference to room for data channel access from tools
+        self._room = room
         super().__init__(
             chat_ctx=chat_ctx,
             instructions="""You are Lelouch, a brilliant strategist turned voice director.
@@ -42,7 +44,7 @@ class LelouchAgent(Agent):
 PERSONALITY:
 - Analytical and precise
 - Concise responses (2-4 sentences)
-- Strategic framing: "This serves the narrative better"
+- Frame choices strategically (focus on narrative impact, not personal preference)
 - Theatrical but commanding tone
 - Reference techniques briefly, then move to action
 
@@ -105,10 +107,11 @@ Audio Preview Tool - preview_line_audio:
 - Tool generates audio file with character voice (different from your Lelouch voice)
 
 STYLE EXAMPLES:
-- "I see. Given the context, regret serves better than sadness here."
-- "Stanislavski's emotion memory - we apply it by... Observe."
-- "Too vague. Specify the emotion's purpose."
-- "Applied. The subtlety serves the moment better."
+- "I see. Regret works better here - guilt without melodrama."
+- "Stanislavski's emotion memory. Watch how we layer it."
+- "Too vague. What's the emotion's purpose in this moment?"
+- "Applied. Check the diff above."
+- "The restraint amplifies the tension. More impact."
 
 CURRENT PHASE:
 Phase 4A complete. All tools are active:
@@ -239,6 +242,30 @@ Phase 4A complete. All tools are active:
             )
 
             logger.info(f"✅ Emotion markup suggested: {diff.summary}")
+
+            # Send git-style diff to frontend via data channel
+            if self._room and self._room.local_participant:
+                try:
+                    import hashlib
+                    diff_id = hashlib.md5(f"{line_text}{proposed_text}".encode()).hexdigest()[:8]
+
+                    diff_message = {
+                        "type": "emotion_diff",
+                        "diff": {
+                            "id": diff_id,
+                            "original": diff.original_text,
+                            "proposed": diff.proposed_text,
+                            "unified_diff": diff.unified_diff,  # Git-style diff
+                            "summary": diff.summary,
+                            "explanation": diff.explanation,
+                        }
+                    }
+                    data = json.dumps(diff_message).encode('utf-8')
+                    await self._room.local_participant.publish_data(data, reliable=True)
+                    logger.info("📤 Sent diff to frontend via data channel")
+                except Exception as e:
+                    logger.error(f"Failed to send diff to frontend: {e}")
+
             return diff.to_json()
 
         except Exception as e:
@@ -358,18 +385,25 @@ def prewarm(proc: JobProcess):
     """
     global _rag_retriever
 
-    logger.info("Prewarming agent resources...")
+    # Suppress warnings and clean up logging in worker processes
+    import warnings
+    warnings.simplefilter("ignore")
+
+    # Remove duplicate log handlers (LiveKit adds JSON handler, we want text only)
+    import logging
+    root_logger = logging.getLogger()
+    # Remove all handlers except the first one (our text formatter)
+    if len(root_logger.handlers) > 1:
+        for handler in root_logger.handlers[1:]:
+            root_logger.removeHandler(handler)
 
     # Phase 3: Initialize RAG retriever
     try:
-        logger.info("Initializing VoiceActingRetriever...")
         _rag_retriever = VoiceActingRetriever(similarity_top_k=5)
-        logger.info("✅ RAG retriever initialized")
+        logger.info("✅ Worker ready")
     except Exception as e:
-        logger.error(f"Failed to initialize RAG retriever: {e}", exc_info=True)
-        logger.warning("Agent will continue without RAG capabilities")
-
-    logger.info("Prewarm complete (Phase 4A: Modernized backend)")
+        logger.error(f"Failed to initialize RAG: {e}")
+        logger.warning("Worker will continue without RAG capabilities")
 
 
 async def entrypoint(ctx: JobContext):
@@ -425,7 +459,7 @@ async def entrypoint(ctx: JobContext):
     logger.info("Created agent session with voice pipeline")
 
     # Start the session with LelouchAgent (tools auto-register from Agent class)
-    await session.start(agent=LelouchAgent(chat_ctx=initial_ctx, story_state=story_state), room=ctx.room)
+    await session.start(agent=LelouchAgent(chat_ctx=initial_ctx, story_state=story_state, room=ctx.room), room=ctx.room)
     logger.info("Agent session started with all Phase 4A tools (RAG + emotion markup + preview)")
 
     # Connect to the LiveKit room (after session start)

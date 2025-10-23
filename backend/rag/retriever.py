@@ -46,8 +46,6 @@ class VoiceActingRetriever:
         if not all([pinecone_api_key, pinecone_index_name, openai_api_key]):
             raise ValueError("Missing required API keys or index name in environment")
 
-        logger.info("Initializing VoiceActingRetriever...")
-
         # Initialize Pinecone
         pc = Pinecone(api_key=pinecone_api_key)
         pinecone_index = pc.Index(pinecone_index_name)
@@ -68,7 +66,6 @@ class VoiceActingRetriever:
         )
 
         self.similarity_top_k = similarity_top_k
-        logger.info(f"✅ VoiceActingRetriever initialized (top_k={similarity_top_k})")
 
     async def search(self, query: str) -> str:
         """

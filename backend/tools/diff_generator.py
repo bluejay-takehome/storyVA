@@ -1,13 +1,14 @@
 """
 Diff Generator for Emotion Markup
 
-Creates structured diffs between original text and emotion-marked text
+Creates git-style unified diffs between original text and emotion-marked text
 for display in the frontend.
 """
 import difflib
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 import json
+import hashlib
 
 
 @dataclass
@@ -22,18 +23,20 @@ class DiffLine:
 @dataclass
 class EmotionDiff:
     """
-    Structured diff for emotion markup changes.
+    Git-style unified diff for emotion markup changes.
 
     Attributes:
         original_text: Original text without markup
         proposed_text: Text with emotion markup applied
-        changes: List of changes made
+        unified_diff: Unified diff string (like git diff output)
         summary: Human-readable summary of changes
+        explanation: Optional rationale for the changes
     """
     original_text: str
     proposed_text: str
-    changes: List[Dict[str, str]]
+    unified_diff: str
     summary: str
+    explanation: Optional[str] = None
 
     def to_dict(self) -> Dict:
         """Convert to dictionary for JSON serialization."""
@@ -50,7 +53,7 @@ def generate_emotion_diff(
     explanation: Optional[str] = None
 ) -> EmotionDiff:
     """
-    Generate a structured diff between original and emotion-marked text.
+    Generate a git-style unified diff between original and emotion-marked text.
 
     Args:
         original_text: Text without emotion markup
@@ -58,28 +61,36 @@ def generate_emotion_diff(
         explanation: Optional explanation of why changes were made
 
     Returns:
-        EmotionDiff object with structured changes
+        EmotionDiff object with unified diff string
 
     Example:
         >>> original = '"I hate you," she said.'
-        >>> proposed = '(sad)(soft tone) "I hate you," (sighing) she said.'
+        >>> proposed = '(sad) "I hate you," she said.'
         >>> diff = generate_emotion_diff(original, proposed)
-        >>> print(diff.summary)
-        "Added 3 emotion tags: (sad), (soft tone), (sighing)"
+        >>> print(diff.unified_diff)
+        @@ -1 +1 @@
+        -"I hate you," she said.
+        +(sad) "I hate you," she said.
     """
-    # Extract added tags
+    # Extract added tags for summary
     added_tags = extract_added_tags(original_text, proposed_text)
 
-    # Generate change list
-    changes = []
+    # Generate unified diff (git style)
+    original_lines = original_text.splitlines(keepends=True)
+    proposed_lines = proposed_text.splitlines(keepends=True)
 
-    if original_text != proposed_text:
-        changes.append({
-            "type": "emotion_markup_added",
-            "original": original_text,
-            "proposed": proposed_text,
-            "tags_added": added_tags,
-        })
+    # Use difflib to create unified diff
+    unified_diff_lines = list(difflib.unified_diff(
+        original_lines,
+        proposed_lines,
+        fromfile='original',
+        tofile='proposed',
+        lineterm='',
+        n=3  # Context lines
+    ))
+
+    # Join diff lines into string
+    unified_diff = '\n'.join(unified_diff_lines)
 
     # Generate summary
     if added_tags:
@@ -97,8 +108,9 @@ def generate_emotion_diff(
     return EmotionDiff(
         original_text=original_text,
         proposed_text=proposed_text,
-        changes=changes,
-        summary=summary
+        unified_diff=unified_diff,
+        summary=summary,
+        explanation=explanation
     )
 
 

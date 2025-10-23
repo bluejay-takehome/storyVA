@@ -9,7 +9,6 @@
 
 import { useEffect, useState } from 'react';
 import { useRoomContext } from '@livekit/components-react';
-import { InlineDiff } from './InlineDiff';
 
 const STORAGE_KEY = 'storyva-story-content';
 
@@ -21,8 +20,9 @@ interface PendingDiff {
   id: string;
   original: string;
   proposed: string;
+  unified_diff: string;  // Git-style unified diff
+  summary?: string;
   explanation?: string;
-  lineNumber?: number;
 }
 
 /**
@@ -46,6 +46,31 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
       setContent(saved);
     }
   }, []);
+
+  // Listen for diff suggestions from agent via data channel
+  useEffect(() => {
+    if (!room) return;
+
+    const handleDataReceived = (payload: Uint8Array, participant?: any) => {
+      try {
+        const decoder = new TextDecoder();
+        const message = JSON.parse(decoder.decode(payload));
+
+        if (message.type === 'emotion_diff' && message.diff) {
+          console.log('Received diff from agent:', message.diff);
+          setPendingDiffs(prev => [...prev, message.diff]);
+        }
+      } catch (error) {
+        console.error('Failed to parse data channel message:', error);
+      }
+    };
+
+    room.on('dataReceived', handleDataReceived);
+
+    return () => {
+      room.off('dataReceived', handleDataReceived);
+    };
+  }, [room]);
 
   // Save to localStorage on every change
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -79,6 +104,20 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     setContent(newContent);
     localStorage.setItem(STORAGE_KEY, newContent);
 
+    // Send story update to agent
+    if (room && room.localParticipant) {
+      try {
+        const encoder = new TextEncoder();
+        const data = encoder.encode(JSON.stringify({
+          type: 'story_update',
+          text: newContent,
+        }));
+        room.localParticipant.publishData(data, { reliable: true });
+      } catch (error) {
+        console.error('Failed to send story update:', error);
+      }
+    }
+
     // Remove the diff from pending list
     setPendingDiffs(prev => prev.filter(d => d.id !== diffId));
   };
@@ -88,10 +127,35 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     setPendingDiffs(prev => prev.filter(d => d.id !== diffId));
   };
 
-  // TODO: This will be populated by agent suggestions in Phase 6
-  // For now, exposed for future integration
-  const addPendingDiff = (diff: PendingDiff) => {
-    setPendingDiffs(prev => [...prev, diff]);
+  // Render content with inline diff highlighting
+  const renderContentWithDiff = () => {
+    if (pendingDiffs.length === 0) {
+      return content;
+    }
+
+    // Apply first pending diff inline
+    const diff = pendingDiffs[0];
+    const originalIndex = content.indexOf(diff.original);
+
+    if (originalIndex === -1) {
+      return content;
+    }
+
+    const before = content.substring(0, originalIndex);
+    const after = content.substring(originalIndex + diff.original.length);
+
+    return (
+      <>
+        {before}
+        <span className="bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200 line-through">
+          {diff.original}
+        </span>
+        <span className="bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200">
+          {diff.proposed}
+        </span>
+        {after}
+      </>
+    );
   };
 
   return (
@@ -109,35 +173,51 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
         </span>
       </div>
 
-      {/* Pending diffs displayed above editor */}
+      {/* Accept/Reject buttons for pending diff */}
       {pendingDiffs.length > 0 && (
-        <div className="mb-4 space-y-3 max-h-64 overflow-y-auto">
-          {pendingDiffs.map(diff => (
-            <InlineDiff
-              key={diff.id}
-              original={diff.original}
-              proposed={diff.proposed}
-              explanation={diff.explanation}
-              onAccept={() => handleAcceptDiff(diff.id)}
-              onReject={() => handleRejectDiff(diff.id)}
-            />
-          ))}
+        <div className="mb-2 flex items-center gap-2">
+          <button
+            onClick={() => handleAcceptDiff(pendingDiffs[0].id)}
+            className="px-3 py-1 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-md transition-colors"
+          >
+            ✓ Accept
+          </button>
+          <button
+            onClick={() => handleRejectDiff(pendingDiffs[0].id)}
+            className="px-3 py-1 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md transition-colors"
+          >
+            ✗ Reject
+          </button>
+          {pendingDiffs[0].summary && (
+            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+              {pendingDiffs[0].summary}
+            </span>
+          )}
         </div>
       )}
 
-      <textarea
-        id="story-editor"
-        value={content}
-        onChange={handleChange}
-        placeholder="Paste your story here... Example:
+      {/* Editor with inline diff highlighting */}
+      {pendingDiffs.length > 0 ? (
+        <div
+          className="flex-1 w-full p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 font-mono text-sm whitespace-pre-wrap overflow-auto"
+        >
+          {renderContentWithDiff()}
+        </div>
+      ) : (
+        <textarea
+          id="story-editor"
+          value={content}
+          onChange={handleChange}
+          placeholder="Paste your story here... Example:
 
 &quot;I can't believe you did this,&quot; she said quietly.
 
 He looked away, guilt washing over him. &quot;I had no choice.&quot;
 
 Add emotion markup with Lelouch's help during your session."
-        className="flex-1 w-full p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 dark:focus:ring-zinc-400 resize-none font-mono text-sm"
-      />
+          className="flex-1 w-full p-4 border border-zinc-300 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 dark:placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-zinc-500 dark:focus:ring-zinc-400 resize-none font-mono text-sm"
+        />
+      )}
     </div>
   );
 }
