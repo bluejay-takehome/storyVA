@@ -1,8 +1,8 @@
 # Technical Design Document: Voice Director Agent
 **Project:** StoryVA - Voice Acting Direction Agent
-**Version:** 1.4
-**Date:** October 22, 2025 (Updated after Phase 5B completion)
-**Status:** In Progress - Phase 5 Partially Complete (Voice & Transcript Working)
+**Version:** 1.5
+**Date:** October 23, 2025 (Updated after Phase 5D completion)
+**Status:** In Progress - Phase 5 Complete (Real-time Transcript with Synchronized Audio)
 
 ---
 
@@ -331,18 +331,25 @@ const [showDiff, setShowDiff] = useState<boolean>(false);
 - Display real-time conversation transcript
 - Auto-scroll to latest message
 - Differentiate user vs agent speech
-- Show interim results (partial transcripts)
+- Receive agent text via data channel (synchronized with audio playback)
+- Listen for user transcriptions from LiveKit
 
 **Data Structure:**
 ```typescript
 interface TranscriptMessage {
   id: string;
-  speaker: 'user' | 'agent';
-  text: string;
+  role: 'user' | 'agent';
+  content: string;
   timestamp: Date;
-  isFinal: boolean;
 }
 ```
+
+**Implementation Notes (Phase 5D):**
+- **Agent Messages:** Received via data channel (`dataReceived` event) when audio starts playing
+  - Backend sends `{type: 'agent_response', text: '...', timestamp: '...'}` after first audio chunk is pushed
+  - Text appears synchronized with audio playback (not after TTS completes)
+- **User Messages:** Received via LiveKit transcription events (`transcriptionReceived`, `trackTranscriptionReceived`)
+- **Removed:** Built-in `agentTranscriptions` listener (caused duplicate messages)
 
 #### 4.1.3 CallControls Component
 **File:** `frontend/components/CallControls.tsx`
@@ -830,9 +837,10 @@ class FishAudioTTS(tts.TTS):
         *,
         api_key: str,
         reference_id: str,  # Voice model ID
-        model: str = "speech-1.6",
+        model: str = "s1",  # Latest Fish Audio model
         latency: str = "normal",
-        format: str = "opus",
+        format: str = "mp3",  # SDK supports: mp3, wav, pcm
+        on_text_synthesizing: Optional[Callable[[str], Awaitable[None]]] = None,  # Callback when audio starts playing
     ):
         super().__init__(
             capabilities=tts.TTSCapabilities(streaming=False),  # Using ChunkedStream
@@ -844,10 +852,14 @@ class FishAudioTTS(tts.TTS):
         self._model = model
         self._latency = latency
         self._format = format
+        self._on_text_synthesizing = on_text_synthesizing
+
+        # Initialize Fish Audio SDK session
+        self._session = Session(api_key)
 
         logger.info(
             f"Initialized FishAudioTTS (voice={reference_id[:8]}..., "
-            f"format={format}, latency={latency})"
+            f"model={model}, format={format}, latency={latency})"
         )
 
     @property
@@ -981,13 +993,27 @@ class ChunkedStream(tts.ChunkedStream):
 ```python
 from tts.fish_audio import FishAudioTTS
 
+# Define callback for text forwarding (Phase 5D)
+async def on_text_synthesizing(text: str):
+    """Send text to frontend when audio starts playing."""
+    # Send via data channel to frontend
+    pass
+
 tts = FishAudioTTS(
     api_key=os.getenv("FISH_AUDIO_API_KEY"),
     reference_id=os.getenv("FISH_LELOUCH_VOICE_ID"),  # 48056d090bfe4d6690ff31725075812f
+    model="s1",  # Latest Fish Audio model
     latency="normal",
-    format="opus",
+    format="mp3",  # SDK supports: mp3, wav, pcm
+    on_text_synthesizing=on_text_synthesizing,  # Optional callback for real-time text forwarding
 )
 ```
+
+**Phase 5D Enhancements:**
+- Added `on_text_synthesizing` callback parameter to send text to frontend when audio starts playing
+- Callback is invoked after first audio chunk is pushed to emitter (synchronized with playback)
+- Uses Fish Audio SDK (`fish-audio-sdk`) instead of manual WebSocket implementation
+- Changed format from `opus` to `mp3` for better SDK compatibility
 
 **Testing:**
 Created comprehensive test script at `backend/scripts/test_fish_audio.py` that validates:
@@ -1432,8 +1458,27 @@ stt=deepgram.STT(
 
 **Status:** ✅ Complete (October 23, 2025)
 
-**Known Issue (Not Blocking):**
-- [ ] **Transcript timing:** Agent text appears in transcript only after TTS finishes speaking. Ideally, text should appear immediately when LLM generates it (before TTS completes). This allows users to read ahead and improves perceived responsiveness. If agent is interrupted, transcript may show text that wasn't fully spoken - this is acceptable UX.
+---
+
+**Phase 5D Tasks (Real-time Transcript Improvements):**
+- [x] User speech transcription logging in backend
+- [x] Synchronized agent text display (text appears when audio starts playing)
+- [x] Remove duplicate agent messages in transcript
+- [x] TTS callback integration for immediate text forwarding
+
+**Status:** ✅ Complete (October 23, 2025)
+
+**Implementation Details:**
+- **User Speech Logging:** Added `user_input_transcribed` event handler in `backend/agent/lelouch.py` that logs all user speech with emoji marker (`👤 User: {transcript}`)
+- **Synchronized Text Display:** Implemented callback-based approach where agent text is sent to frontend via data channel when first audio chunk starts playing (not after TTS completes)
+  - Modified `backend/tts/fish_audio.py` to accept `on_text_synthesizing` callback
+  - Modified `backend/agent/voice_pipeline.py` to pass callback to FishAudioTTS
+  - Callback fires after first audio chunk is pushed to emitter (synchronized with audio playback)
+  - Frontend receives text via data channel and displays immediately in LiveTranscript
+- **Flow:** `LLM generates text → TTS synthesizes → First audio chunk sent → Text forwarded to frontend → User sees text + hears audio`
+- **Removed Duplicates:** Disabled built-in `agentTranscriptions` listener in `LiveTranscript.tsx` since we now use data channel for agent text
+
+**Deliverable:** ✅ Real-time transcript with user speech logging and synchronized agent text display
 
 ---
 
