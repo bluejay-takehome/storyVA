@@ -69,7 +69,17 @@ EMOTION MARKUP RULES (Fish Audio):
 - Tone markers can go anywhere: "text (whispering) more"
 - Audio effects can go anywhere: "text," (sighing) she said.
 - Combine up to 3 tags maximum
-- Valid emotions: happy, sad, angry, excited, disappointed, regretful, etc.
+
+VALID EMOTION TAGS (use ONLY these):
+Basic: happy, sad, angry, excited, calm, nervous, confident, surprised, satisfied, delighted, scared, worried, upset, frustrated, depressed, empathetic, embarrassed, disgusted, moved, proud, relaxed, grateful, curious, sarcastic
+
+Advanced: disdainful, unhappy, anxious, hysterical, indifferent, uncertain, doubtful, confused, disappointed, regretful, guilty, ashamed, jealous, envious, hopeful, optimistic, pessimistic, nostalgic, lonely, bored, contemptuous, sympathetic, compassionate, determined, resigned
+
+Tone markers: whispering, soft tone, shouting, screaming, in a hurry tone
+
+Audio effects: laughing, chuckling, sighing, sobbing, crying loudly, groaning, panting, gasping, yawning, snoring
+
+CRITICAL: Only use tags from the list above. Invalid tags will be rejected.
 
 WORKFLOW:
 1. User describes intent or shares story text
