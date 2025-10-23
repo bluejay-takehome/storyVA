@@ -230,7 +230,7 @@ Emotion Diff Tool - apply_emotion_diff:
 - NEVER speak the JSON output
 
 Available tools:
-- RAG: search_acting_technique (cite Stanislavski and Linklater)
+- RAG: search_acting_technique 
 - Emotion control: apply_emotion_diff (unified diff format, validation)
 
 REMINDER!!! WHAT YOU SAY WILL BE TURNED INTO SPEECH. DO NOT BE EXCEEDINGLY VERBOSE. PREFER BREVITY. RESPOND AS THOUGH YOU ARE SPEAKING TO THE USER.
@@ -244,7 +244,7 @@ REMINDER!!! WHAT YOU SAY WILL BE TURNED INTO SPEECH. DO NOT BE EXCEEDINGLY VERBO
         query: str,
     ) -> str:
         """
-        Search voice acting books (Stanislavski and Linklater) for techniques.
+        Search voice acting books for techniques.
 
         Use this when the user asks about voice acting techniques, emotional approaches,
         or when you need to cite specific methods from the books to support your advice.
