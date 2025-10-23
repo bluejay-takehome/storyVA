@@ -15,13 +15,10 @@ from agent.voice_pipeline import create_agent_session
 from rag.retriever import VoiceActingRetriever
 from tools.emotion_validator import validate_emotion_markup
 from tools.diff_generator import generate_emotion_diff, parse_unified_diff
-from tools.fish_audio_preview import FishAudioPreview
-
 logger = logging.getLogger(__name__)
 
 # Global resources (initialized in prewarm)
 _rag_retriever: VoiceActingRetriever | None = None
-_fish_audio_preview: FishAudioPreview | None = None
 
 
 class LelouchAgent(Agent):
@@ -62,7 +59,16 @@ CONVERSATION vs TOOLS:
 - USE TOOLS: When working on specific story elements
   → User asks about voice acting techniques → use search_acting_technique
   → User wants emotion control for specific lines → use apply_emotion_diff
-  → User wants to hear how marked-up text sounds → use preview_line_audio
+
+CRITICAL - PARENTHESES USAGE:
+- When EXPLAINING or giving advice, NEVER use parentheses around emotion tags
+  ✅ Good: "Consider adding the nervous tag to Harry's line"
+  ✅ Good: "Use sad and soft tone for Miku"
+  ❌ Bad: "Consider adding (nervous) to Harry's line" ← This makes YOUR voice nervous
+  ❌ Bad: "Use (sad) and (soft tone)" ← TTS applies these to YOU
+- ONLY use parentheses when READING/PERFORMING a line the user asked you to read
+  ✅ Good: User asks "read this line" → You say: "(nervous) I'm not sure about this"
+- Reason: Fish Audio TTS sees (emotion) tags and applies them to your voice instead of speaking the words
 
 EMOTION MARKUP RULES (Fish Audio):
 - Emotion tags MUST be at sentence start: (sad) "text"
@@ -86,11 +92,10 @@ WORKFLOW:
 2. You analyze story context
 3. Retrieve technique if relevant using search_acting_technique(query)
 4. Apply emotion control changes using apply_emotion_diff(diff_patch, explanation)
-5. After tool returns result, acknowledge concisely: "Applied. See the diff above."
+5. After tool returns result, acknowledge concisely: "Applied. Check the diff above."
    → DO NOT speak the JSON output from tools
    → The diff appears visually in the UI
 6. Wait for user approval
-7. If user asks "how would this sound?", call preview_line_audio(marked_up_text, character_gender)
 
 TOOL USAGE:
 
@@ -119,15 +124,6 @@ Emotion Diff Tool - apply_emotion_diff:
 - After calling, acknowledge: "Applied. Check the diff above."
 - NEVER speak the JSON output
 
-Audio Preview Tool - preview_line_audio:
-- Use when user asks "how would this sound?" or requests audio preview
-- CRITICAL: Automatically infer character gender from context
-  - Pronouns: "she said" → "female", "he replied" → "male"
-  - Character names: Sarah/Emma → "female", Marcus/John → "male"
-  - Default to "neutral" if ambiguous
-- NEVER ask user for gender - infer it silently from the text
-- Tool generates audio file with character voice (different from your Lelouch voice)
-
 STYLE EXAMPLES:
 - "I see. Regret works better here - guilt without melodrama."
 - "Stanislavski's emotion memory. Watch how we layer it."
@@ -136,10 +132,9 @@ STYLE EXAMPLES:
 - "The restraint amplifies the tension. More impact."
 
 CURRENT PHASE:
-Phase 4A complete. All tools are active:
+Phase 4A complete. Active tools:
 - RAG: search_acting_technique (cite Stanislavski and Linklater)
 - Emotion control: apply_emotion_diff (unified diff format, validation)
-- Audio preview: preview_line_audio (Fish Audio with character voices)
 """
         )
 
@@ -278,71 +273,6 @@ Phase 4A complete. All tools are active:
         except Exception as e:
             logger.error(f"Failed to suggest emotion markup: {e}", exc_info=True)
             return f"Error suggesting markup: {str(e)}"
-
-    @function_tool
-    async def preview_line_audio(
-        self,
-        context: RunContext[StoryState],
-        marked_up_text: str,
-        character_gender: str = "neutral",
-    ) -> str:
-        """
-        Generate audio preview of a line with Fish Audio using character voice.
-
-        Use when user asks "how would this sound?" or wants to hear the emotional delivery.
-        IMPORTANT: You MUST infer character_gender automatically from story context.
-        Do NOT ask the user for gender - analyze the text yourself.
-
-        Gender inference rules:
-        - Pronouns: "she/her" → "female", "he/him" → "male"
-        - Character names: Sarah/Emma → "female", Marcus/John → "male"
-        - Attribution: "she said" → "female", "he replied" → "male"
-        - Default to "neutral" if ambiguous
-
-        Args:
-            marked_up_text: Text with emotion tags applied (e.g., "(sad) I'm leaving")
-            character_gender: "male", "female", or "neutral" (MUST infer, not ask)
-
-        Returns:
-            Status message with audio file path
-
-        Example:
-            User: "How would that sound?"
-            Context: '"I hate you," she said.'
-            → Infer gender="female" from "she"
-            marked_up_text: '(sad)(soft tone) "I hate you," (sighing) she said.'
-            character_gender: "female"
-        """
-        global _fish_audio_preview
-
-        try:
-            logger.info(
-                f"Generating audio preview (gender={character_gender}, "
-                f"text='{marked_up_text[:50]}...')"
-            )
-
-            # Initialize Fish Audio client if needed
-            if _fish_audio_preview is None:
-                _fish_audio_preview = FishAudioPreview()
-                logger.info("Fish Audio preview client initialized")
-
-            # Generate audio
-            audio_path = await _fish_audio_preview.generate_preview(
-                text=marked_up_text,
-                character_gender=character_gender,
-            )
-
-            logger.info(f"✅ Audio preview generated: {audio_path}")
-
-            return (
-                f"Audio preview generated successfully. "
-                f"File saved to: {audio_path} "
-                f"(Voice: {character_gender})"
-            )
-
-        except Exception as e:
-            logger.error(f"Failed to generate audio preview: {e}", exc_info=True)
-            return f"Error generating audio preview: {str(e)}"
 
     async def on_user_turn_completed(
         self, turn_ctx: ChatContext, new_message: ChatMessage

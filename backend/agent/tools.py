@@ -1,39 +1,23 @@
 """
 Function tools for Lelouch voice director agent.
 
-Provides RAG search, emotion markup, and audio preview capabilities for the agent.
+Provides RAG search and emotion markup capabilities for the agent.
 """
 import logging
-from typing import List
 from livekit.agents.llm import function_tool
-from agent.state import StoryState
-from tools.emotion_validator import validate_emotion_markup, ValidationResult
-from tools.diff_generator import generate_emotion_diff, EmotionDiff, parse_unified_diff
-from tools.fish_audio_preview import FishAudioPreview, infer_character_gender
+from tools.emotion_validator import validate_emotion_markup
+from tools.diff_generator import generate_emotion_diff, parse_unified_diff
 
 logger = logging.getLogger(__name__)
 
 # Global RAG retriever (initialized in prewarm)
 _rag_retriever = None
 
-# Global Fish Audio preview client (initialized on first use)
-_fish_audio_preview = None
-
-
 def set_rag_retriever(retriever):
     """Set the global RAG retriever instance (called from prewarm)."""
     global _rag_retriever
     _rag_retriever = retriever
     logger.info("RAG retriever registered with tools")
-
-
-def get_fish_audio_preview() -> FishAudioPreview:
-    """Get or create Fish Audio preview client."""
-    global _fish_audio_preview
-    if _fish_audio_preview is None:
-        _fish_audio_preview = FishAudioPreview()
-        logger.info("Fish Audio preview client initialized")
-    return _fish_audio_preview
 
 
 @function_tool()
@@ -140,62 +124,3 @@ async def apply_emotion_diff(
         return f"Error suggesting markup: {str(e)}"
 
 
-@function_tool()
-async def preview_line_audio(
-    marked_up_text: str,
-    character_gender: str = "neutral",
-) -> str:
-    """
-    Generate audio preview of a line with Fish Audio using character voice.
-
-    Use when user asks "how would this sound?" or wants to hear the emotional delivery.
-    IMPORTANT: You MUST infer character_gender automatically from story context.
-    Do NOT ask the user for gender - analyze the text yourself.
-
-    Gender inference rules:
-    - Pronouns: "she/her" → "female", "he/him" → "male"
-    - Character names: Sarah/Emma → "female", Marcus/John → "male"
-    - Attribution: "she said" → "female", "he replied" → "male"
-    - Default to "neutral" if ambiguous
-
-    Args:
-        marked_up_text: Text with emotion tags applied (e.g., "(sad) I'm leaving")
-        character_gender: "male", "female", or "neutral" (MUST infer, not ask)
-
-    Returns:
-        Status message with audio file path
-
-    Example:
-        User: "How would that sound?"
-        Context: '"I hate you," she said.'
-        → Infer gender="female" from "she"
-        marked_up_text: '(sad)(soft tone) "I hate you," (sighing) she said.'
-        character_gender: "female"
-    """
-    try:
-        logger.info(
-            f"Generating audio preview (gender={character_gender}, "
-            f"text='{marked_up_text[:50]}...')"
-        )
-
-        # Get Fish Audio preview client
-        preview_client = get_fish_audio_preview()
-
-        # Generate audio
-        audio_path = await preview_client.generate_preview(
-            text=marked_up_text,
-            character_gender=character_gender,
-        )
-
-        logger.info(f"✅ Audio preview generated: {audio_path}")
-
-        # Return success message with file path
-        return (
-            f"Audio preview generated successfully. "
-            f"File saved to: {audio_path} "
-            f"(Voice: {character_gender})"
-        )
-
-    except Exception as e:
-        logger.error(f"Failed to generate audio preview: {e}", exc_info=True)
-        return f"Error generating audio preview: {str(e)}"
