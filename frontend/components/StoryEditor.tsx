@@ -80,7 +80,7 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     localStorage.setItem(STORAGE_KEY, newContent);
 
     // Send story update to agent via data channel (if connected)
-    if (room && room.localParticipant) {
+    if (room && room.localParticipant && room.state === 'connected') {
       try {
         const encoder = new TextEncoder();
         const data = encoder.encode(JSON.stringify({
@@ -106,7 +106,7 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     localStorage.setItem(STORAGE_KEY, newContent);
 
     // Send story update to agent
-    if (room && room.localParticipant) {
+    if (room && room.localParticipant && room.state === 'connected') {
       try {
         const encoder = new TextEncoder();
         const data = encoder.encode(JSON.stringify({
