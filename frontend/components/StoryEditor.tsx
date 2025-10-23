@@ -9,6 +9,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRoomContext } from '@livekit/components-react';
+import { diffWordsWithSpace, Change } from 'diff';
 
 const STORAGE_KEY = 'storyva-story-content';
 
@@ -127,7 +128,7 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     setPendingDiffs(prev => prev.filter(d => d.id !== diffId));
   };
 
-  // Render content with inline diff highlighting
+  // Render content with inline diff highlighting (character-level)
   const renderContentWithDiff = () => {
     if (pendingDiffs.length === 0) {
       return content;
@@ -144,15 +145,38 @@ export function StoryEditor({ className = '' }: StoryEditorProps) {
     const before = content.substring(0, originalIndex);
     const after = content.substring(originalIndex + diff.original.length);
 
+    // Compute word-level diff (respects word boundaries and spaces)
+    const changes: Change[] = diffWordsWithSpace(diff.original, diff.proposed);
+
     return (
       <>
         {before}
-        <span className="bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200 line-through">
-          {diff.original}
-        </span>
-        <span className="bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200">
-          {diff.proposed}
-        </span>
+        {changes.map((change, index) => {
+          if (change.added) {
+            // Added text - green highlight
+            return (
+              <span
+                key={index}
+                className="bg-green-100 dark:bg-green-900/30 text-green-900 dark:text-green-200"
+              >
+                {change.value}
+              </span>
+            );
+          } else if (change.removed) {
+            // Removed text - red strikethrough
+            return (
+              <span
+                key={index}
+                className="bg-red-100 dark:bg-red-900/30 text-red-900 dark:text-red-200 line-through"
+              >
+                {change.value}
+              </span>
+            );
+          } else {
+            // Unchanged text - normal
+            return <span key={index}>{change.value}</span>;
+          }
+        })}
         {after}
       </>
     );
