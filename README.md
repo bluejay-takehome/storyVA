@@ -9,6 +9,11 @@ In this context, Lelouch went into hiding after faking his death and now teaches
 
 ---
 
+![StoryVA Interface](images/screenshot.png)
+*Live session showing emotion tag suggestions, inline diff preview, and conversation with Lelouch*
+
+---
+
 ## System Architecture
 
 ```
