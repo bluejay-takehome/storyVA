@@ -268,9 +268,13 @@ npm run dev
 
 **Custom Fish Audio TTS**: Built custom LiveKit TTS plugin using `fish-audio-sdk` since Fish Audio isn't available as a built-in plugin. Required for 60+ emotion tags (core feature). Trade-off: more complexity vs essential emotion capability.
 
+**Have Lelouch use fishaudio instead of a call to fishaudio for emotion narration**: Originally planned to have Lelouch make a tool call to fishaudio when the user wanted to hear how a line would sound with emotion. Decided to just have Lelouch use fishaudio directly, telling him to avoid using parentheses when explaining, and only use parentheses when performing the line.
+
+**Decided not to use multicharacter narration**: Time constraint.
+
 **Story State Sync**: Bidirectional data channel keeps story text synchronized—frontend sends `story_update` on edits, backend injects `<current_story>` into LLM context. Enables real-time editing but adds state management complexity.
 
-**Unified Diff Format**: Git-style diffs for emotion markup changes (clear, handles multi-line). Requires exact text matching—fails if user edits between suggestion and acceptance.
+**Unified Diff Format**: Git-style diffs for emotion markup changes (clear, handles multi-line). Requires exact text matching— which can fail if user edits between suggestion and acceptance. Can also fail if the LLM sends an improper diff edit request.
 
 **Synchronized Transcript**: Agent text sent via data channel when first audio chunk plays (`on_text_synthesizing` callback). User sees text as they hear agent—better UX, slight complexity trade-off.
 
