@@ -24,10 +24,6 @@ In this context, Lelouch went into hiding after faking his death and now teaches
 
 ---
 
-## Demo
-
-> **Placeholder**: Add screenshots or video demo link here
-
 **Demo Flow:**
 1. User pastes story text into editor
 2. Clicks "Start Direction Session"
@@ -274,41 +270,14 @@ Sources:
 ## Technology Stack
 
 ### Frontend
-
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| **Next.js** | 16.0.0 | React framework (App Router) |
-| **React** | 19.2.0 | UI library |
-| **TypeScript** | 5.x | Type safety |
-| **Tailwind CSS** | 4.x | Styling |
-| **@livekit/components-react** | 2.9.15 | LiveKit UI components |
-| **livekit-client** | 2.15.13 | LiveKit WebRTC client |
-| **livekit-server-sdk** | 2.14.0 | Token generation |
-| **diff** | 8.0.2 | Inline diff highlighting |
+Next.js, TypeScript, Tailwind CSS, LiveKit components, livekit-client, livekit-server-sdk, diff
 
 ### Backend
-
-| Component | Version | Purpose |
-|-----------|---------|---------|
-| **Python** | 3.10+ | Runtime |
-| **livekit-agents** | 1.2.15 | Agent framework |
-| **fish-audio-sdk** | 2025.6.3 | Custom TTS integration |
-| **llama-index** | 0.14.5+ | RAG framework |
-| **pinecone-client** | 6.0.0+ | Vector database client |
-| **livekit-plugins-deepgram** | 1.2.15 | STT integration |
-| **livekit-plugins-openai** | 1.2.15 | LLM integration |
-| **livekit-plugins-silero** | 1.2.15 | VAD integration |
-| **python-dotenv** | 1.1.1 | Environment variables |
+Python, livekit-agents, fish-audio-sdk, llama-index, pinecone-client
 
 ### External Services
+LiveKit Cloud, Pinecone, OpenAI, Deepgram, Fish Audio
 
-| Service | Purpose | Cost |
-|---------|---------|------|
-| **LiveKit Cloud** | WebRTC media server, agent dispatch | Free tier available |
-| **Pinecone** | Vector database (1173 vectors) | Free tier (100k vectors) |
-| **OpenAI** | GPT-5 (LLM) + text-embedding-3-large | Pay-per-use |
-| **Deepgram** | Nova-3 speech-to-text | Pay-per-use |
-| **Fish Audio** | Emotion-tagged TTS | Pay-per-use |
 
 ---
 
@@ -401,8 +370,6 @@ uv run python scripts/index_pdfs.py
 # Should see ~1173 vectors in index
 ```
 
-**Note**: The submitted version already has PDFs indexed. Skip this unless you're using a different Pinecone index.
-
 ### 5. Run Backend Agent
 
 ```bash
@@ -443,28 +410,6 @@ npm run dev
 6. Speak to agent: "Make this scene more emotional"
 7. Agent retrieves technique and suggests emotion markup
 8. Accept or reject inline diff
-
-### Troubleshooting
-
-**Backend won't start:**
-- Check all API keys are set in `backend/.env`
-- Verify Python 3.10+ with `python --version`
-- Ensure uv is installed: `uv --version`
-
-**Frontend connection fails:**
-- Verify LiveKit credentials in `frontend/.env.local`
-- Check backend agent is running first
-- Look for errors in browser console (F12)
-
-**No audio from agent:**
-- Click "Click to enable audio" button (browser autoplay restriction)
-- Check microphone permissions
-- Verify Fish Audio API key is valid
-
-**RAG not working:**
-- Confirm Pinecone index exists and has vectors
-- Check OpenAI API key for embeddings
-- Run indexing script if index is empty
 
 ---
 
