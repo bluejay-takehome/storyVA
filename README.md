@@ -257,10 +257,9 @@ npm run dev
    ```
 3. Click "Start Direction Session"
 4. Wait for agent to connect (see "Session active" indicator)
-5. Click "Click to enable audio" if prompted (browser autoplay policy)
-6. Speak to agent: "Make this scene more emotional"
-7. Agent retrieves technique and suggests emotion markup
-8. Accept or reject inline diff
+5. Speak to agent: "Make this scene more emotional"
+6. Agent retrieves technique and suggests emotion markup
+7. Accept or reject inline diff
 
 ---
 
