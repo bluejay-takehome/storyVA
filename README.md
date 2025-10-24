@@ -9,32 +9,6 @@ In this context, Lelouch went into hiding after faking his death and now teaches
 
 ---
 
-## Table of Contents
-
-- [Demo](#demo)
-- [System Architecture](#system-architecture)
-- [How It Works (End-to-End)](#how-it-works-end-to-end)
-- [RAG Integration](#rag-integration)
-- [Technology Stack](#technology-stack)
-- [Setup Instructions](#setup-instructions)
-- [Design Decisions & Trade-offs](#design-decisions--trade-offs)
-- [Hosting Assumptions](#hosting-assumptions)
-- [RAG Assumptions](#rag-assumptions)
-- [LiveKit Agent Design](#livekit-agent-design)
-
----
-
-**Demo Flow:**
-1. User pastes story text into editor
-2. Clicks "Start Direction Session"
-3. Agent (Lelouch) greets user with personality
-4. User requests emotion markup: "Make the breakup scene more emotional"
-5. Agent retrieves technique from Stanislavski, suggests specific Fish Audio tags
-6. Inline diff displays proposed changes with Accept/Reject buttons
-7. User accepts → text updates with emotion markup
-
----
-
 ## System Architecture
 
 ```
@@ -97,173 +71,50 @@ In this context, Lelouch went into hiding after faking his death and now teaches
 
 ## How It Works (End-to-End)
 
-### 1. Frontend Session Start
+**Session Start:**
+User pastes story into editor → clicks "Start Direction Session" → frontend requests LiveKit token with room metadata → agent auto-joins room via LiveKit dispatch → microphone enabled.
 
-**User Actions:**
-- Pastes story text into Story Editor component
-- Text auto-saves to localStorage
-- Clicks "Start Direction Session"
+**Agent Initialization:**
+Worker preloads RAG (Pinecone + LlamaIndex) on startup. Per-room: agent parses story from metadata, sets up data channel for story updates, initializes voice pipeline (Silero VAD → Deepgram STT → GPT-5 LLM → Fish Audio TTS), connects to room.
 
-**What Happens:**
-1. `useRoom` hook calls `/api/livekit-token` (POST)
-2. Token endpoint generates:
-   - Unique room name
-   - Participant access token
-   - Room configuration with `RoomAgentDispatch` (agent_name: "storyva-voice-director")
-   - Metadata containing initial story text
-3. Frontend connects to LiveKit room
-4. Enables microphone
-5. Agent automatically joins room (dispatched by LiveKit)
+**Conversation Loop:**
+User speaks → VAD detects → Deepgram transcribes → GPT-5 processes with current story context + Lelouch personality → optionally calls tools:
+- `search_acting_technique`: RAG retrieves top-5 passages from voice acting books with citations
+- `apply_emotion_diff`: Validates Fish Audio tags, checks text match, generates unified diff, sends to frontend via data channel
 
-**Code Flow:**
-```
-frontend/app/page.tsx (Start button click)
-  ↓
-hooks/useRoom.ts (fetch token + connect)
-  ↓
-api/livekit-token/route.ts (generate token with agent dispatch)
-  ↓
-LiveKit Cloud (create room, dispatch agent)
-```
+Agent responds → Fish Audio synthesizes → audio + transcript sent to frontend (synchronized).
 
-### 2. Backend Agent Initialization
-
-**Worker Startup (Once per process):**
-- `prewarm()` function initializes global RAG retriever
-- Connects to Pinecone index `storyva-voice-acting`
-- Sets up LlamaIndex query engine
-
-**Per-Room Connection:**
-1. `entrypoint()` function called when agent joins room
-2. Creates `StoryState` (session state management)
-3. Parses job metadata for initial story text
-4. Sets up data channel listener for real-time story updates
-5. Creates `on_text_synthesizing` callback for synchronized transcript
-6. Initializes voice pipeline:
-   - VAD: Silero (voice activity detection)
-   - STT: Deepgram Nova-3 (300ms endpointing)
-   - LLM: GPT-5 (with reasoning effort)
-   - TTS: Fish Audio SDK (mp3 format, normal latency)
-7. Starts session with `LelouchAgent` instance
-8. Connects to LiveKit room
-
-**Code Flow:**
-```
-backend/main.py (worker start)
-  ↓
-agent/lelouch.py::prewarm() (initialize RAG)
-  ↓
-agent/lelouch.py::entrypoint() (per-room setup)
-  ↓
-agent/voice_pipeline.py (create AgentSession)
-  ↓
-LelouchAgent initialized with 2 tools
-```
-
-### 3. Conversation Loop
-
-**User Speaks:**
-1. Microphone captures audio
-2. VAD detects speech
-3. Deepgram transcribes in real-time
-4. User speech logged in backend: `👤 User: {transcript}`
-5. User transcription appears in frontend LiveTranscript
-
-**Agent Processes:**
-1. GPT-5 receives transcript + system instructions
-2. `on_user_turn_completed` hook injects `<current_story>{text}</current_story>` into context
-3. Agent analyzes with Lelouch personality (strategic, concise)
-4. If technique needed → calls `search_acting_technique(query)`
-   - RAG retrieves top-5 passages from Pinecone
-   - Returns with citations (author, title, page)
-5. If emotion markup needed → calls `apply_emotion_diff(diff_patch, explanation)`
-   - Validates Fish Audio tags (60+ emotions, tones, effects)
-   - Checks original text exists in current story (exact match)
-   - Generates unified diff
-   - Sends `emotion_diff` message via data channel to frontend
-
-**Agent Responds:**
-1. GPT-5 generates response text
-2. Fish Audio SDK synthesizes with Lelouch voice
-3. After first audio chunk is pushed → `on_text_synthesizing` callback fires
-4. Agent text sent via data channel to frontend
-5. Frontend displays in LiveTranscript synchronized with audio
-6. User hears agent voice through `RoomAudioRenderer`
-
-### 4. Diff Application
-
-**Frontend Receives Diff:**
-1. StoryEditor listens for `emotion_diff` messages on data channel
-2. Displays inline diff with word-level highlighting:
-   - Removed text: red strikethrough
-   - Added text: green highlight
-3. Shows Accept/Reject buttons above editor
-
-**User Accepts:**
-1. Clicks Accept button
-2. Original text replaced with proposed text
-3. Updated text saved to localStorage
-4. `story_update` message sent via data channel to backend
-5. Agent's `StoryState` updated with new text
-6. Diff removed from pending list
-
-**User Rejects:**
-1. Clicks Reject button
-2. Diff dismissed (no changes applied)
+**Diff Application:**
+Frontend displays inline diff (red strikethrough for removed, green highlight for added) with Accept/Reject buttons. User accepts → text updated in editor + localStorage → `story_update` sent to backend. User rejects → diff dismissed.
 
 ---
 
-## RAG Integration
+## RAG System
 
-**Purpose:** Retrieve relevant voice acting techniques from classic texts to support agent's suggestions.
+**Purpose**: Retrieve voice acting techniques from 4 classic texts to support agent suggestions with authoritative citations.
 
-**Vector Database:**
-- **Service**: Pinecone Cloud
-- **Index**: `storyva-voice-acting`
-- **Vectors**: 1173 chunks from 4 PDF books
-- **Metric**: Cosine similarity
+**Architecture**: LlamaIndex query engine → Pinecone Cloud (`storyva-voice-acting` index, 1173 vectors) → OpenAI `text-embedding-3-large` (1536 dims) → Top-k=5 retrieval → GPT-5 synthesis with citations.
 
-**Source Documents:**
+**Source Documents**:
 1. "An Actor Prepares" by Constantin Stanislavski
 2. "Freeing the Natural Voice" by Kristin Linklater
 3. "The Voice Director's Handbook Volume 1"
 4. "The Voice Director's Handbook Volume 2"
 
-**Embeddings:**
-- **Model**: OpenAI `text-embedding-3-large`
-- **Dimensions**: 1536
-- **Why this model**: Better quality for nuanced acting concepts vs `-small`
+**Chunking**: LlamaIndex defaults (~512 tokens, ~50 overlap, semantic splitting). Works well for prose without custom domain splitting.
 
-**Framework:**
-- **LlamaIndex**: Query engine with Pinecone vector store
-- **Retrieval**: Top-k=5 (balances relevance vs context length)
-- **Response**: LLM synthesizes passages into conversational answer
+**Why This Stack**:
+- Pinecone: Managed service, free tier covers 1173 vectors, zero maintenance
+- `text-embedding-3-large`: Better quality for nuanced acting concepts vs `-small`
+- Top-k=5: Balances relevance vs context length
 
-**Indexing Process:**
-```bash
-# One-time setup (already completed)
-cd backend
-uv run python scripts/index_pdfs.py
-```
+**Tool**: `search_acting_technique(query)` - RAG retrieves passages, LLM synthesizes answer with author/title/page citations.
 
-**Code:**
-- Indexer: `backend/rag/indexer.py`
-- Retriever: `backend/rag/retriever.py`
-- Tool: `LelouchAgent.search_acting_technique()`
+**Query Examples**: "How to sound desperate?", "What does Stanislavski say about subtext?"
 
-**Query Examples:**
-- "How do I make a character sound more desperate?"
-- "What techniques help with emotional authenticity?"
-- "What does Stanislavski say about subtext?"
+**Indexing** (one-time, already complete): `cd backend && uv run python scripts/index_pdfs.py`
 
-**Response Format:**
-```
-[Synthesized answer based on retrieved passages]
-
-Sources:
-- An Actor Prepares by Constantin Stanislavski (p.42)
-- Freeing the Natural Voice by Kristin Linklater (p.89)
-```
+**Code**: `backend/rag/indexer.py`, `backend/rag/retriever.py`, `agent/lelouch.py`
 
 ---
 
@@ -415,123 +266,15 @@ npm run dev
 
 ## Design Decisions & Trade-offs
 
-### 1. Custom Fish Audio TTS Integration
+**Custom Fish Audio TTS**: Built custom LiveKit TTS plugin using `fish-audio-sdk` since Fish Audio isn't available as a built-in plugin. Required for 60+ emotion tags (core feature). Trade-off: more complexity vs essential emotion capability.
 
-**Decision**: Implement custom LiveKit TTS plugin using `fish-audio-sdk`
+**Story State Sync**: Bidirectional data channel keeps story text synchronized—frontend sends `story_update` on edits, backend injects `<current_story>` into LLM context. Enables real-time editing but adds state management complexity.
 
-**Rationale:**
-- Fish Audio not available as built-in LiveKit plugin
-- Supports 60+ emotion tags (core feature requirement)
-- Official SDK more reliable than manual WebSocket protocol
+**Unified Diff Format**: Git-style diffs for emotion markup changes (clear, handles multi-line). Requires exact text matching—fails if user edits between suggestion and acceptance.
 
-**Trade-offs:**
-- ✅ Gets emotion markup capability (essential)
-- ✅ Stable SDK maintained by Fish Audio
-- ❌ More complex than using built-in TTS
-- ❌ Requires understanding LiveKit TTS interface
+**Synchronized Transcript**: Agent text sent via data channel when first audio chunk plays (`on_text_synthesizing` callback). User sees text as they hear agent—better UX, slight complexity trade-off.
 
-**Implementation**: `backend/tts/fish_audio.py` (using ChunkedStream pattern)
-
-### 2. Story State Synchronization
-
-**Decision**: Bidirectional data channel for real-time story updates
-
-**Architecture:**
-- Frontend sends `story_update` messages on every edit
-- Backend maintains `StoryState` with current text
-- Agent injects `<current_story>` into LLM context before each response
-
-**Rationale:**
-- Agent needs latest story text to suggest accurate diffs
-- Exact text matching required for diff validation
-- Editable textarea (user can modify during session)
-
-**Trade-offs:**
-- ✅ Always in sync, no stale data
-- ✅ Supports real-time editing
-- ❌ Slight network latency on updates
-- ❌ More complex state management
-
-### 3. Unified Diff Format
-
-**Decision**: Git-style unified diffs for emotion markup changes
-
-**Format Example:**
-```
-@@ -1 +1 @@
--"I can't believe this," she said.
-+(sad)(soft tone) "I can't believe this," she said.
-```
-
-**Rationale:**
-- Precise, unambiguous change representation
-- Handles multi-line changes
-- Familiar to developers
-
-**Trade-offs:**
-- ✅ Clear, professional format
-- ✅ Works with any text length
-- ❌ Requires exact character-for-character matching
-- ❌ Fails if user edits text between suggestion and acceptance
-
-**Validation**: `backend/tools/diff_generator.py` + `emotion_validator.py`
-
-### 4. Single-View UI
-
-**Decision**: Story editor always visible, transcript appears on right during session
-
-**Rationale:**
-- Simpler than separate welcome/session views
-- User can see story while conversing
-- Faster to implement
-
-**Trade-offs:**
-- ✅ Straightforward UX
-- ✅ Less state management
-- ❌ Less polished than multi-view
-- ❌ Tight screen space on small displays
-
-**Alternative considered**: Separate WelcomeView/SessionView with transitions (rejected for MVP scope)
-
-### 5. Synchronized Transcript
-
-**Decision**: Send agent text via data channel when first audio chunk plays
-
-**Flow:**
-```
-LLM generates → TTS synthesizes → First chunk sent →
-Callback fires → Text sent to frontend → Display immediately
-```
-
-**Rationale:**
-- User sees text as they hear agent speak (better UX)
-- No waiting for full TTS completion
-- Synchronized experience
-
-**Trade-offs:**
-- ✅ Real-time feel
-- ✅ Text + audio aligned
-- ❌ Added callback complexity in TTS
-- ❌ Text appears even if interrupted (acceptable)
-
-**Implementation**: `on_text_synthesizing` callback in `fish_audio.py`
-
-### 6. No Revision History
-
-**Decision**: Only track current pending diff, no undo functionality
-
-**Rationale:**
-- MVP scope limitation
-- Time constraints
-- localStorage provides manual rollback (user can copy old version)
-
-**Trade-offs:**
-- ✅ Simpler implementation
-- ✅ Less state management
-- ❌ User can't undo accepted changes
-- ❌ No history log
-
-**Future enhancement**: Store `applied_diffs` array in `StoryState` for potential undo
+**No Revision History**: Only tracks current pending diff, no undo (MVP scope limitation). Simpler implementation but user can't undo accepted changes.
 
 ---
 
@@ -568,104 +311,8 @@ If deploying to production:
 
 ---
 
-## RAG Assumptions
+## Agent Tools
 
-### Chunking Strategy
+**search_acting_technique(query)**: RAG retrieval from voice acting books. Returns synthesized answer with author/title/page citations. Triggered when user asks about techniques or agent proactively cites sources.
 
-**Approach**: LlamaIndex default chunking (semantic splitting)
-
-**Parameters:**
-- Chunk size: ~512 tokens (default)
-- Chunk overlap: ~50 tokens (default)
-- Preserves paragraph/section context
-
-**Rationale:**
-- LlamaIndex defaults work well for prose
-- No custom splitting needed for voice acting books
-- Semantic boundaries preserved
-
-**Trade-offs:**
-- ✅ Fast implementation
-- ✅ Good retrieval quality in testing
-- ❌ No domain-specific splitting (e.g., by technique, chapter)
-
-### Vector Database Choice
-
-**Selected**: Pinecone Cloud
-
-**Alternatives Considered:**
-- Chroma (local, embedded)
-- Weaviate (self-hosted)
-- Qdrant (self-hosted)
-
-**Why Pinecone:**
-- Managed service (no infrastructure)
-- Free tier sufficient (100k vectors, we use 1173)
-- Easy setup with LlamaIndex
-- Reliable, production-ready
-
-**Trade-offs:**
-- ✅ Zero maintenance
-- ✅ Fast queries
-- ❌ Requires internet connection
-- ❌ Vendor lock-in
-
-### Embedding Model
-
-**Selected**: OpenAI `text-embedding-3-large` (1536 dimensions)
-
-**Why this model:**
-- Better quality for nuanced concepts than `-small`
-- Matches retrieval quality needs (acting techniques are complex)
-- Worth the slight cost/latency increase
-
-**Trade-offs:**
-- ✅ Better retrieval accuracy
-- ❌ Slower than `-small` (~10% more latency)
-- ❌ Slightly more expensive per query
-
-### Retrieval Parameters
-
-**Top-k**: 5 chunks per query
-
-**Rationale:**
-- Balances relevance (enough context) vs context length (LLM limits)
-- Testing showed 5 provides sufficient citations
-- Allows 1-2 sources with ~3 passages each
-
-**Trade-offs:**
-- ✅ Good coverage of relevant techniques
-- ❌ Higher k would increase latency/cost
-
-### Query Processing
-
-**Flow:**
-```
-User query → OpenAI embedding → Pinecone similarity search →
-Top-5 chunks → LlamaIndex synthesis → Conversational response
-```
-
-**Synthesis**: LLM (GPT-5) combines retrieved passages into coherent answer with citations
-
----
-
-### Tool Calling
-
-**Tool 1: search_acting_technique**
-- **Purpose**: RAG retrieval from voice acting books
-- **Input**: Natural language query (e.g., "How to convey desperation?")
-- **Process**: Query → Embedding → Pinecone search → LlamaIndex synthesis
-- **Output**: Formatted answer with citations
-- **Trigger**: User asks about techniques, or agent proactively cites sources
-
-**Tool 2: apply_emotion_diff**
-- **Purpose**: Validate and apply Fish Audio emotion markup
-- **Input**: Unified diff string + explanation
-- **Validation**:
-  1. Parse diff to extract original/proposed text
-  2. Check original exists in current story (exact match)
-  3. Validate emotion tags against Fish Audio spec (60+ tags)
-  4. Check tag placement rules (emotions at sentence start)
-- **Output**: JSON result with diff data
-- **Side Effect**: Sends `emotion_diff` message via data channel to frontend
-- **Trigger**: User requests emotion markup for specific text
+**apply_emotion_diff(diff_patch, explanation)**: Validates Fish Audio emotion tags (60+ emotions), checks original text exists in current story (exact match), generates unified diff, sends to frontend via data channel. Triggered when user requests emotion markup.
